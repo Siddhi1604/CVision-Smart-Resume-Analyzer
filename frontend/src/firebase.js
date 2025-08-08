@@ -2,20 +2,34 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-const cfg = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || 'AIzaSyDTAXoGkaY_hUPeZ8Ue4-FdB_fI3dUKGTc',
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || 'cvision-70048.firebaseapp.com',
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || 'cvision-70048',
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || 'cvision-70048.firebasestorage.app',
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || '180997017976',
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || '1:180997017976:web:f74146ac6d1520ac02388d',
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || 'G-NWSBE41FYR',
-};
+const requiredEnvVars = [
+  'REACT_APP_FIREBASE_API_KEY',
+  'REACT_APP_FIREBASE_AUTH_DOMAIN',
+  'REACT_APP_FIREBASE_PROJECT_ID',
+  'REACT_APP_FIREBASE_STORAGE_BUCKET',
+  'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+  'REACT_APP_FIREBASE_APP_ID',
+];
 
-if (!process.env.REACT_APP_FIREBASE_API_KEY) {
-  // eslint-disable-next-line no-console
-  console.warn('Firebase env vars not found. Falling back to inline config. Ensure you have frontend/.env set and restart dev server.');
+const missingEnv = requiredEnvVars.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  throw new Error(
+    `Missing Firebase environment variables: ${missingEnv.join(', ')}. ` +
+    'Create frontend/.env and restart the dev server.'
+  );
 }
+
+const cfg = {
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  ...(process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+    ? { measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID }
+    : {}),
+};
 
 const app = initializeApp(cfg);
 export const auth = getAuth(app);
