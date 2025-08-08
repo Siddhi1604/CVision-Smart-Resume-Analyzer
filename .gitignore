@@ -1,0 +1,9 @@
+# Node / React
+frontend/node_modules/
+frontend/build/
+frontend/.cache/
+frontend/.env
+
+# Python venvs (if present in monorepo)
+Smart-AI-Resume-Analyzer/venv/
+venv/
