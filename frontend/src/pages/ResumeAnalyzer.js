@@ -7,11 +7,9 @@ import {
   Search, 
   FileText, 
   CheckCircle, 
-  AlertCircle, 
   TrendingUp,
   Target,
-  Lightbulb,
-  Download
+  Lightbulb
 } from 'lucide-react';
 import { useJobRoles } from '../context/JobRolesContext';
 import axios from 'axios';
