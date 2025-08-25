@@ -1,6 +1,12 @@
 import React, { useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 
+const opacityMap = {
+  subtle: 0.5,
+  medium: 0.7,
+  strong: 0.9,
+}
+
 function createBeam(width, height) {
   const angle = -35 + Math.random() * 10
   return {
@@ -22,12 +28,6 @@ export default function BeamsBackground({ className = "", intensity = "medium" }
   const beamsRef = useRef([])
   const animationFrameRef = useRef(0)
   const MINIMUM_BEAMS = 15
-
-  const opacityMap = {
-    subtle: 0.5,
-    medium: 0.7,
-    strong: 0.9,
-  }
 
   useEffect(() => {
     const canvas = canvasRef.current

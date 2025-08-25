@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const JobRolesContext = createContext();
@@ -19,7 +19,7 @@ export const JobRolesProvider = ({ children }) => {
     (process.env.REACT_APP_USE_MOCK_API || '').toLowerCase() === '1' ||
     (process.env.REACT_APP_USE_MOCK_API || '').toLowerCase() === 'true';
 
-  const getFallbackJobRoles = () => ({
+  const getFallbackJobRoles = useCallback(() => ({
     "Technology": {
       "Software Engineer": {
         "description": "Develop software applications and systems",
@@ -58,7 +58,7 @@ export const JobRolesProvider = ({ children }) => {
         "required_skills": ["Accounting", "Tax Preparation", "Financial Reporting", "Excel"]
       }
     }
-  });
+  }), []);
 
   useEffect(() => {
     const fetchJobRoles = async () => {
@@ -79,7 +79,7 @@ export const JobRolesProvider = ({ children }) => {
     };
 
     fetchJobRoles();
-  }, []);
+  }, [useMockApi, getFallbackJobRoles]);
 
   const getCategories = () => Object.keys(jobRoles);
   

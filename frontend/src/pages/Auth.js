@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, User, Github, ArrowLeft, Chrome } from 'lucide-react';
+import { Mail, Lock, User, ArrowLeft, Chrome } from 'lucide-react';
 
 const Auth = () => {
   const { login, register, loginWithGoogle } = useAuth();
