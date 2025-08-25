@@ -14,6 +14,7 @@ import Feedback from './pages/Feedback';
 import About from './pages/About';
 import Auth from './pages/Auth';
 import ProtectedRoute from './components/ProtectedRoute';
+import Profile from './pages/Profile';
 
 // Context
 import { JobRolesProvider } from './context/JobRolesContext';
@@ -37,7 +38,12 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/job-search" element={<JobSearch />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/about" element={<About />} />

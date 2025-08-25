@@ -10,12 +10,15 @@ import {
   MessageSquare, 
   Info,
   Menu,
-  X
+  X,
+  User
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -24,7 +27,7 @@ const Navbar = () => {
     { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { path: '/job-search', label: 'Job Search', icon: Briefcase },
     { path: '/feedback', label: 'Feedback', icon: MessageSquare },
-    { path: '/about', label: 'About', icon: Info },
+    { path: '/about', label: 'About', icon: Info }
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -41,9 +44,6 @@ const Navbar = () => {
             >
               <span className="text-white font-bold text-sm">CV</span>
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
-              CVision
-            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -67,13 +67,28 @@ const Navbar = () => {
             })}
           </div>
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10"
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Small circular profile button */}
+            <Link to="/profile" className="w-8 h-8 rounded-full overflow-hidden border border-white/10 bg-white/10 flex items-center justify-center hover:bg-white/15 transition-colors">
+              {user && user.photoURL ? (
+                <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+              ) : user ? (
+                <span className="text-xs font-semibold text-white">
+                  {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                </span>
+              ) : (
+                <User size={16} className="text-gray-300" />
+              )}
+            </Link>
+
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10"
+            >
+              {isOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}

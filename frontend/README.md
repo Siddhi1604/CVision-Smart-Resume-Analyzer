@@ -50,7 +50,8 @@ Defined in `src/App.js`:
 Protected routes use `src/components/ProtectedRoute.js` and `src/context/AuthContext.js`.
 
 ### Data fetching
-- `src/context/JobRolesContext.js` requests job roles from `/job-roles` (relative to the dev server/proxy) and provides helper selectors with a built-in fallback dataset.
+- `src/context/JobRolesContext.js` requests job roles from `/job-roles` (relative to the dev server/proxy). Set `REACT_APP_USE_MOCK_API=true` to use a built-in fallback dataset without a backend.
+- `src/pages/Dashboard.js` requests `/dashboard/stats`. With `REACT_APP_USE_MOCK_API=true`, it renders mock analytics without a backend.
 
 ### Styling
 - Tailwind CSS configured via `tailwind.config.js` and `postcss.config.js`.
