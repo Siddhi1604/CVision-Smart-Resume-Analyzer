@@ -12,6 +12,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import BeamsBackground from '../components/BeamsBackground';
+import { TypingHero } from '../components/TypingHero';
 
 const Home = () => {
   const features = [
@@ -78,10 +79,7 @@ const Home = () => {
                 CVision
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed">
-              Your intelligent career partner. Analyze, optimize, and craft resumes that stand out, 
-              helping you land your dream job with AI-powered insights.
-            </p>
+            <TypingHero />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/analyzer"
