@@ -8,6 +8,18 @@
   box-sizing: border-box;
 }
 
+:root {
+  --safe-area-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+html {
+  background: #0f0f23;
+  overscroll-behavior: none;
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges;
+  scroll-padding-bottom: var(--safe-area-bottom);
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -17,6 +29,8 @@ body {
   background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
   color: #ffffff;
   min-height: 100vh;
+  overflow-x: hidden;
+  padding-bottom: var(--safe-area-bottom);
 }
 
 code {
