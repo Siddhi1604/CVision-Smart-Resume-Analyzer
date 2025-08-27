@@ -8,6 +8,10 @@ import json
 import re
 import os
 from openai import OpenAI
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 app = FastAPI(title="CVision Standard Analyzer", version="0.1.0")
@@ -30,14 +34,19 @@ app.add_middleware(
 )
 
 # OpenAI client for AI analysis
-openai_client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key="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",
-    default_headers={
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "CVision Resume Analyzer",
-    }
-)
+openai_api_key = os.environ.get("OPENROUTER_API_KEY")
+if not openai_api_key:
+    print("Warning: OPENROUTER_API_KEY not found in environment variables. AI analysis will not work.")
+    openai_client = None
+else:
+    openai_client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=openai_api_key,
+        default_headers={
+            "HTTP-Referer": "http://localhost:3000",
+            "X-Title": "CVision Resume Analyzer",
+        }
+    )
 
 # Simple in-memory storage for resume analyses (in production, use a database)
 resume_analyses_storage = []
@@ -471,6 +480,9 @@ Return ONLY valid JSON in this schema:
 }}
 """
 
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="AI analysis service not configured. Please set OPENROUTER_API_KEY environment variable.")
+    
     try:
         completion = openai_client.chat.completions.create(
             model="openai/gpt-4o-mini",

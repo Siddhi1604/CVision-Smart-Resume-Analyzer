@@ -7,3 +7,12 @@ frontend/.env
 # Python venvs (if present in monorepo)
 Smart-AI-Resume-Analyzer/venv/
 venv/
+
+# Environment variables
+.env
+backend/.env
+*.env
+
+# API Keys and Secrets
+**/secrets/
+**/keys/
