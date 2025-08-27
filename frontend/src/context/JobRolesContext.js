@@ -13,14 +13,34 @@ export const useJobRoles = () => {
 
 export const JobRolesProvider = ({ children }) => {
   const [jobRoles, setJobRoles] = useState({});
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchJobRoles = async () => {
       try {
-        const response = await axios.get('/job-roles');
-        setJobRoles(response.data);
+        // Fetch categories explicitly to populate the dropdown
+        const [catsRes, rolesRes] = await Promise.all([
+          axios.get('/job-categories'),
+          axios.get('/job-roles'), // nested category -> role -> { description, required_skills }
+        ]);
+
+        if (Array.isArray(catsRes.data?.categories)) {
+          setCategories(catsRes.data.categories);
+        }
+
+        // Accept either nested object or { roles_by_category } shape
+        const data = rolesRes.data || {};
+        const nested = data.roles_by_category
+          ? Object.fromEntries(
+              Object.entries(data.roles_by_category).map(([cat, roles]) => [
+                cat,
+                Object.fromEntries((roles || []).map((r) => [r, { description: '', required_skills: [] }]))
+              ])
+            )
+          : data;
+        setJobRoles(nested || {});
       } catch (err) {
         console.error('Error fetching job roles:', err);
         setError('Failed to load job roles');
@@ -33,7 +53,7 @@ export const JobRolesProvider = ({ children }) => {
     fetchJobRoles();
   }, []);
 
-  const getCategories = () => Object.keys(jobRoles);
+  const getCategories = () => (categories.length ? categories : Object.keys(jobRoles));
   
   const getRolesByCategory = (category) => {
     return jobRoles[category] ? Object.keys(jobRoles[category]) : [];

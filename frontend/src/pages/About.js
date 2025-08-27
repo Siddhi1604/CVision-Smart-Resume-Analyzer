@@ -35,31 +35,6 @@ const About = () => {
     }
   ];
 
-  const team = [
-    {
-      name: 'Siddhi Pandya',
-      role: 'Frontend Developer',
-      avatar: 'SP',
-      bio: 'Passionate frontend developer with expertise in React.js, Tailwind CSS, and modern web technologies. Focused on creating intuitive and responsive user interfaces that enhance user experience.',
-      links: {
-        github: 'https://github.com/Siddhi1604',
-        linkedin: 'https://www.linkedin.com/in/siddhi-pandya-557515266/',
-        email: '22it084@charusat.edu.in'
-      }
-    },
-    {
-      name: 'Vyom Pandya',
-      role: 'Backend Developer',
-      avatar: 'VP',
-      bio: 'Skilled backend developer specializing in FastAPI, Python, and database management. Committed to building robust and scalable server-side solutions that power modern web applications.',
-      links: {
-        github: 'https://github.com/VyomPandya',
-        linkedin: 'https://www.linkedin.com/in/vyom-pandya/',
-        email: '22it157@charusat.edu.in'
-      }
-    }
-  ];
-
   const stats = [
     { label: 'Resumes Analyzed', value: '10,000+' },
     { label: 'Happy Users', value: '5,000+' },
@@ -139,107 +114,11 @@ const About = () => {
           ))}
         </motion.div>
 
-        {/* Team Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="mb-12"
-        >
-          <h2 className="text-3xl font-bold text-center mb-8">Meet the Team</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            {team.map((member, index) => (
-              <div key={index} className="card">
-                <div className="flex items-start gap-6">
-                  <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-green-400 font-bold text-xl">{member.avatar}</span>
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-semibold mb-2">{member.name}</h3>
-                    <p className="text-green-400 font-medium mb-4">{member.role}</p>
-                    <p className="text-gray-300 leading-relaxed mb-6">{member.bio}</p>
-                    
-                    <div className="flex gap-4">
-                      <a
-                        href={member.links.github}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                      >
-                        <Github size={20} />
-                        GitHub
-                      </a>
-                      <a
-                        href={member.links.linkedin}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                      >
-                        <Linkedin size={20} />
-                        LinkedIn
-                      </a>
-                      <a
-                        href={`mailto:${member.links.email}`}
-                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-                      >
-                        <Mail size={20} />
-                        Email
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Technology Stack */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.9 }}
-          className="card mb-12"
-        >
-          <h2 className="text-3xl font-bold text-center mb-8">Technology Stack</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="text-center">
-              <h3 className="text-xl font-semibold mb-4">Frontend</h3>
-              <div className="space-y-2 text-gray-300">
-                <p>React.js</p>
-                <p>Tailwind CSS</p>
-                <p>Framer Motion</p>
-                <p>Axios</p>
-              </div>
-            </div>
-            
-            <div className="text-center">
-              <h3 className="text-xl font-semibold mb-4">Backend</h3>
-              <div className="space-y-2 text-gray-300">
-                <p>FastAPI</p>
-                <p>Python</p>
-                <p>SQLAlchemy</p>
-                <p>SQLite</p>
-              </div>
-            </div>
-            
-            <div className="text-center">
-              <h3 className="text-xl font-semibold mb-4">AI & ML</h3>
-              <div className="space-y-2 text-gray-300">
-                <p>Google Gemini</p>
-                <p>NLTK</p>
-                <p>Scikit-learn</p>
-                <p>spaCy</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Contact Section */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 1.0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
           className="card text-center"
         >
           <h2 className="text-3xl font-bold mb-4">Get in Touch</h2>
