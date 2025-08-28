@@ -7,6 +7,10 @@ import io
 import json
 import re
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -61,6 +65,74 @@ class ResumeAnalysis(BaseModel):
     analysis_result: Dict
     created_at: Optional[str] = None
     file_name: Optional[str] = None
+
+
+class FeedbackRequest(BaseModel):
+    name: str
+    email: str
+    subject: str
+    message: str
+    rating: Optional[int] = None
+
+
+def send_feedback_email(feedback: FeedbackRequest):
+    """Send feedback email using SMTP settings from environment variables."""
+    try:
+        # SMTP and email configuration from environment (works with Brevo, SendGrid, etc.)
+        smtp_host = os.environ.get("EMAIL_SMTP_HOST", "")
+        smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587") or 587)
+        use_tls = os.environ.get("EMAIL_USE_TLS", "true").lower() in {"1", "true", "yes", "on"}
+        use_ssl = os.environ.get("EMAIL_USE_SSL", "false").lower() in {"1", "true", "yes", "on"}
+        smtp_user = os.environ.get("EMAIL_USER", "")
+        smtp_password = os.environ.get("EMAIL_PASSWORD", "")
+        sender_email = os.environ.get("EMAIL_FROM", smtp_user or "")
+        recipients_env = os.environ.get("FEEDBACK_RECIPIENTS", "22it084@charusat.edu.in,22it157@charusat.edu.in")
+        recipients = [r.strip() for r in recipients_env.split(",") if r.strip()]
+
+        if not (smtp_host and (smtp_user and smtp_password) and sender_email and recipients):
+            print("Email not fully configured. Would have sent to:", recipients)
+            return False
+
+        # Build message
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = f"CVision Feedback: {feedback.subject}"
+        if feedback.email:
+            msg['Reply-To'] = feedback.email
+
+        body = f"""
+        New feedback received for CVision Resume Analyzer
+
+        From: {feedback.name} ({feedback.email})
+        Subject: {feedback.subject}
+        Rating: {feedback.rating}/5 (if provided)
+        Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+        Message:
+        {feedback.message}
+
+        ---
+        This feedback was sent automatically from the CVision application.
+        """
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Connect and send
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port)
+            if use_tls:
+                server.starttls()
+        if smtp_user:
+            server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+
+    except Exception as e:
+        print(f"Error sending feedback email: {e}")
+        return False
 
 
 def _load_roles_dataset() -> Dict[str, Dict[str, List[str]]]:
@@ -569,4 +641,17 @@ async def store_analysis(analysis: ResumeAnalysis):
 async def get_user_analyses(user_id: str):
     user_analyses = [a for a in resume_analyses_storage if a["user_id"] == user_id]
     return {"analyses": user_analyses}
+
+
+@app.post("/send-feedback")
+async def send_feedback(feedback: FeedbackRequest):
+    """Send feedback email to the team"""
+    try:
+        success = send_feedback_email(feedback)
+        if success:
+            return {"message": "Feedback sent successfully!", "status": "success"}
+        else:
+            return {"message": "Feedback logged (email not configured)", "status": "logged"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send feedback: {str(e)}")
 

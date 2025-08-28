@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 import { 
   MessageSquare, 
   Star, 
@@ -21,6 +22,7 @@ const Feedback = () => {
   });
 
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const testimonials = [
     {
@@ -69,11 +71,27 @@ const Feedback = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      // Here you would send the feedback to your backend
-      // await axios.post('/feedback', feedback);
+      // Send feedback to backend
+      const feedbackData = {
+        name: feedback.name,
+        email: feedback.email,
+        subject: `Feedback - ${feedback.category}`,
+        message: feedback.message,
+        rating: feedback.rating
+      };
+
+      const response = await axios.post('/send-feedback', feedbackData);
       
-      toast.success('Thank you for your feedback!');
+      if (response.data.status === 'success') {
+        toast.success('Thank you for your feedback! We\'ll get back to you soon.');
+      } else {
+        toast.success('Thank you for your feedback! It has been logged.');
+      }
+
+      // Reset form
       setFeedback({
         name: '',
         email: '',
@@ -82,7 +100,10 @@ const Feedback = () => {
         category: 'general'
       });
     } catch (error) {
+      console.error('Error submitting feedback:', error);
       toast.error('Error submitting feedback. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,6 +168,7 @@ const Feedback = () => {
                       onChange={(e) => setFeedback(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full pl-10 pr-4 py-3 bg-black/20 border border-gray-600 rounded-lg text-white focus:border-green-400 focus:outline-none"
                       placeholder="Your name"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -161,6 +183,7 @@ const Feedback = () => {
                       onChange={(e) => setFeedback(prev => ({ ...prev, email: e.target.value }))}
                       className="w-full pl-10 pr-4 py-3 bg-black/20 border border-gray-600 rounded-lg text-white focus:border-green-400 focus:outline-none"
                       placeholder="your@email.com"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -172,6 +195,7 @@ const Feedback = () => {
                   value={feedback.category}
                   onChange={(e) => setFeedback(prev => ({ ...prev, category: e.target.value }))}
                   className="w-full p-3 bg-black/20 border border-gray-600 rounded-lg text-white focus:border-green-400 focus:outline-none"
+                  disabled={isSubmitting}
                 >
                   <option value="general">General Feedback</option>
                   <option value="bug">Bug Report</option>
@@ -198,15 +222,26 @@ const Feedback = () => {
                   className="w-full p-3 bg-black/20 border border-gray-600 rounded-lg text-white focus:border-green-400 focus:outline-none resize-none"
                   rows={5}
                   placeholder="Tell us about your experience with CVision..."
+                  disabled={isSubmitting}
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full btn btn-primary flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Send size={16} />
-                Send Feedback
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} />
+                    Send Feedback
+                  </>
+                )}
               </button>
             </form>
           </motion.div>
