@@ -187,6 +187,37 @@ const ResumeBuilder = () => {
     }
   };
 
+  // Preview style variants per template
+  const tpl = formData.template;
+  const nameClass = tpl === 'Modern'
+    ? 'text-2xl font-extrabold tracking-wide text-emerald-400'
+    : tpl === 'Professional'
+    ? 'text-xl font-bold tracking-tight text-gray-100'
+    : tpl === 'Minimal'
+    ? 'text-2xl font-semibold tracking-normal text-gray-200'
+    : 'text-3xl font-extrabold tracking-wider text-violet-300';
+  const contactClass = tpl === 'Modern'
+    ? 'text-xs text-gray-300'
+    : tpl === 'Professional'
+    ? 'text-sm text-gray-300'
+    : tpl === 'Minimal'
+    ? 'text-xs text-gray-400'
+    : 'text-sm text-purple-200';
+  const sectionTitleClass = tpl === 'Modern'
+    ? 'uppercase text-emerald-400 text-xs tracking-widest'
+    : tpl === 'Professional'
+    ? 'uppercase text-blue-200 text-xs tracking-widest'
+    : tpl === 'Minimal'
+    ? 'text-gray-300 text-sm font-medium'
+    : 'text-violet-300 text-sm font-semibold italic';
+  const previewShellClass = tpl === 'Modern'
+    ? 'bg-black/40 border-emerald-500/40'
+    : tpl === 'Professional'
+    ? 'bg-black/30 border-blue-400/30'
+    : tpl === 'Minimal'
+    ? 'bg-transparent border-gray-600'
+    : 'bg-gradient-to-br from-violet-800/20 to-fuchsia-700/10 border-violet-400/30';
+
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.div
@@ -579,46 +610,55 @@ const ResumeBuilder = () => {
 
           {/* Right Column - Preview */}
           <div className="space-y-6">
-            <div className="card sticky top-24">
+            <div className={`sticky top-24 p-5 rounded-xl border ${previewShellClass}`}>
               <h3 className="text-xl font-semibold mb-4">Resume Preview</h3>
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-green-400">{formData.personalInfo.fullName || 'Your Name'}</h4>
-                  <p className="text-sm text-gray-400">{formData.personalInfo.email || 'email@example.com'}</p>
-                  <p className="text-sm text-gray-400">{formData.personalInfo.phone || 'Phone'}</p>
-                  <p className="text-sm text-gray-400">{formData.personalInfo.location || 'Location'}</p>
+                  <h4 className={nameClass}>{formData.personalInfo.fullName || 'Your Name'}</h4>
+                  <p className={contactClass}>{formData.personalInfo.email || 'email@example.com'}</p>
+                  <p className={contactClass}>{formData.personalInfo.phone || 'Phone'}</p>
+                  <p className={contactClass}>{formData.personalInfo.location || 'Location'}</p>
                 </div>
-                
+                {tpl === 'Modern' && (
+                  <div className="h-px bg-emerald-500/40" />
+                )}
+                {tpl === 'Professional' && (
+                  <div className="h-px bg-blue-400/30" />
+                )}
+                {tpl === 'Creative' && (
+                  <div className="h-0.5 bg-gradient-to-r from-violet-400/50 via-fuchsia-400/50 to-emerald-400/50 rounded-full" />
+                )}
+
                 {formData.summary && (
                   <div>
-                    <h5 className="font-medium mb-2">Summary</h5>
+                    <h5 className={`${sectionTitleClass} mb-1`}>Summary</h5>
                     <p className="text-sm text-gray-300">{formData.summary}</p>
                   </div>
                 )}
-                
+
                 {formData.experience.length > 0 && (
                   <div>
-                    <h5 className="font-medium mb-2">Experience</h5>
+                    <h5 className={`${sectionTitleClass} mb-1`}>Experience</h5>
                     <p className="text-sm text-gray-300">{formData.experience.length} position(s)</p>
                   </div>
                 )}
-                
+
                 {formData.education.length > 0 && (
                   <div>
-                    <h5 className="font-medium mb-2">Education</h5>
+                    <h5 className={`${sectionTitleClass} mb-1`}>Education</h5>
                     <p className="text-sm text-gray-300">{formData.education.length} degree(s)</p>
                   </div>
                 )}
-                
+
                 {formData.projects.length > 0 && (
                   <div>
-                    <h5 className="font-medium mb-2">Projects</h5>
+                    <h5 className={`${sectionTitleClass} mb-1`}>Projects</h5>
                     <p className="text-sm text-gray-300">{formData.projects.length} project(s)</p>
                   </div>
                 )}
-                
+
                 <div>
-                  <h5 className="font-medium mb-2">Template</h5>
+                  <h5 className={`${sectionTitleClass} mb-1`}>Template</h5>
                   <p className="text-sm text-gray-300">{formData.template}</p>
                 </div>
               </div>

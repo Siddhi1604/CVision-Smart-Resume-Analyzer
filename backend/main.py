@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Set, Tuple
@@ -13,9 +14,19 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
+import io as _io
 
-# Load environment variables from .env file
-load_dotenv()
+try:
+    import docx  # python-docx
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+except Exception:
+    docx = None
+
+# Load environment variables from .env file located next to this file
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_DOTENV_PATH = os.path.join(_BACKEND_DIR, ".env")
+load_dotenv(dotenv_path=_DOTENV_PATH, override=True)
 
 
 app = FastAPI(title="CVision Standard Analyzer", version="0.1.0")
@@ -75,61 +86,298 @@ class FeedbackRequest(BaseModel):
     rating: Optional[int] = None
 
 
-def send_feedback_email(feedback: FeedbackRequest):
-    """Send feedback email using SMTP settings from environment variables."""
+# ==== Resume Builder Request Model ====
+class ExperienceItem(BaseModel):
+    company: str = ""
+    position: str = ""
+    startDate: str = ""
+    endDate: str = ""
+    description: str = ""
+    responsibilities: List[str] = []
+    achievements: List[str] = []
+
+
+class EducationItem(BaseModel):
+    school: str = ""
+    degree: str = ""
+    field: str = ""
+    graduationDate: str = ""
+    gpa: str = ""
+    achievements: List[str] = []
+
+
+class ProjectItem(BaseModel):
+    name: str = ""
+    technologies: str = ""
+    description: str = ""
+    responsibilities: List[str] = []
+    achievements: List[str] = []
+    link: str = ""
+
+
+class Skills(BaseModel):
+    technical: List[str] = []
+    soft: List[str] = []
+    languages: List[str] = []
+    tools: List[str] = []
+
+
+class PersonalInfo(BaseModel):
+    fullName: str = ""
+    email: str = ""
+    phone: str = ""
+    location: str = ""
+    linkedin: str = ""
+    portfolio: str = ""
+
+
+class ResumeBuildRequest(BaseModel):
+    personalInfo: PersonalInfo
+    summary: str = ""
+    experience: List[ExperienceItem] = []
+    education: List[EducationItem] = []
+    projects: List[ProjectItem] = []
+    skills: Skills = Skills()
+    template: str = "Modern"
+
+
+def _add_section_title(d, title: str, template: str):
+    p = d.add_paragraph()
+    run = p.add_run(title.upper() if template in {"Professional", "Minimal"} else title)
+    run.bold = True
+    p_format = p.paragraph_format
+    p_format.space_before = Pt(6)
+    p_format.space_after = Pt(2)
+
+
+def _add_bullets(d, items: List[str]):
+    for item in items:
+        if not item or not item.strip():
+            continue
+        p = d.add_paragraph(style='List Bullet')
+        p.add_run(item.strip())
+
+
+def _compose_contact_line(pi: PersonalInfo) -> str:
+    parts: List[str] = []
+    if pi.email:
+        parts.append(pi.email)
+    if pi.phone:
+        parts.append(pi.phone)
+    if pi.location:
+        parts.append(pi.location)
+    if pi.linkedin:
+        parts.append(pi.linkedin)
+    if pi.portfolio:
+        parts.append(pi.portfolio)
+    return " \u2022 ".join([p for p in parts if p])
+
+
+def build_resume_docx(payload: ResumeBuildRequest) -> bytes:
+    if docx is None:
+        raise HTTPException(status_code=503, detail="Document service not available (python-docx missing)")
+
+    document = docx.Document()
+
+    # Template-specific style setup
+    template = (payload.template or "Modern").strip()
+    template = template if template in {"Modern", "Professional", "Minimal", "Creative"} else "Modern"
+
+    def apply_color(run, hex_rgb: str):
+        if not hex_rgb:
+            return
+        try:
+            hex_rgb = hex_rgb.lstrip('#')
+            run.font.color.rgb = RGBColor(int(hex_rgb[0:2], 16), int(hex_rgb[2:4], 16), int(hex_rgb[4:6], 16))
+        except Exception:
+            pass
+
+    # Header: Name (distinct per template)
+    name_paragraph = document.add_paragraph()
+    name_run = name_paragraph.add_run(payload.personalInfo.fullName or "Your Name")
+    name_run.bold = True
+
+    if template == "Modern":
+        name_run.font.size = Pt(22)
+        apply_color(name_run, "22c55e")  # green accent
+        name_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    elif template == "Professional":
+        name_run.font.size = Pt(18)
+        apply_color(name_run, "111827")  # near-black
+        name_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    elif template == "Minimal":
+        name_run.font.size = Pt(20)
+        apply_color(name_run, "374151")  # gray
+        name_paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    else:  # Creative
+        name_run.font.size = Pt(24)
+        apply_color(name_run, "a78bfa")  # purple accent
+        name_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # Optional accent divider for Modern/Creative
+    if template in {"Modern", "Creative"}:
+        divider = document.add_paragraph()
+        dr = divider.add_run("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        apply_color(dr, "e5e7eb")
+        divider.paragraph_format.space_after = Pt(4)
+
+    # Contact line (distinct alignment + subtle color)
+    contact = _compose_contact_line(payload.personalInfo)
+    if contact:
+        contact_p = document.add_paragraph(contact)
+        if template in {"Modern", "Creative"}:
+            contact_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        else:
+            contact_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        contact_p.paragraph_format.space_after = Pt(10 if template == "Minimal" else 8)
+
+    # Summary
+    if payload.summary and payload.summary.strip():
+        _add_section_title(document, "Summary", template)
+        p = document.add_paragraph(payload.summary.strip())
+        if template == "Minimal":
+            p.paragraph_format.space_after = Pt(12)
+
+    # Skills
+    if any([payload.skills.technical, payload.skills.soft, payload.skills.languages, payload.skills.tools]):
+        _add_section_title(document, "Skills", template)
+        def add_skill_line(label: str, values: List[str]):
+            if values:
+                p = document.add_paragraph()
+                run = p.add_run(f"{label}: ")
+                run.bold = True
+                p.add_run(", ".join(values))
+        add_skill_line("Technical", payload.skills.technical)
+        add_skill_line("Soft", payload.skills.soft)
+        add_skill_line("Languages", payload.skills.languages)
+        add_skill_line("Tools", payload.skills.tools)
+
+    # Experience
+    if payload.experience:
+        _add_section_title(document, "Experience", template)
+        for exp in payload.experience:
+            header = ", ".join([p for p in [exp.position, exp.company] if p])
+            dates = " - ".join([p for p in [exp.startDate, exp.endDate] if p])
+            title_line = header + (f"  |  {dates}" if dates else "")
+            if title_line:
+                p = document.add_paragraph()
+                r = p.add_run(title_line)
+                r.bold = True
+                if template == "Professional":
+                    apply_color(r, "1f2937")
+            if exp.description and exp.description.strip():
+                document.add_paragraph(exp.description.strip())
+            _add_bullets(document, exp.responsibilities or [])
+            _add_bullets(document, exp.achievements or [])
+
+    # Education
+    if payload.education:
+        _add_section_title(document, "Education", template)
+        for edu in payload.education:
+            header = ", ".join([p for p in [edu.degree, edu.field] if p])
+            school_part = edu.school or ""
+            date_part = edu.graduationDate or ""
+            line_parts = [part for part in [header, school_part, date_part] if part]
+            if line_parts:
+                p = document.add_paragraph()
+                rr = p.add_run(" | ".join(line_parts))
+                rr.bold = True
+                if template == "Minimal":
+                    apply_color(rr, "4b5563")
+            if edu.gpa:
+                document.add_paragraph(f"GPA: {edu.gpa}")
+            _add_bullets(document, edu.achievements or [])
+
+    # Projects
+    if payload.projects:
+        _add_section_title(document, "Projects", template)
+        for proj in payload.projects:
+            header = proj.name or ""
+            tech = proj.technologies or ""
+            if header:
+                p = document.add_paragraph()
+                run = p.add_run(header)
+                run.bold = True
+                if tech:
+                    p.add_run(f" — {tech}")
+            if proj.description:
+                document.add_paragraph(proj.description)
+            _add_bullets(document, proj.responsibilities or [])
+            _add_bullets(document, proj.achievements or [])
+            if proj.link:
+                document.add_paragraph(proj.link)
+
+    # Serialize to bytes
+    buffer = _io.BytesIO()
+    document.save(buffer)
+    buffer.seek(0)
+    return buffer.read()
+
+
+@app.post("/build-resume")
+async def build_resume(req: ResumeBuildRequest):
     try:
-        # SMTP and email configuration from environment (works with Brevo, SendGrid, etc.)
-        smtp_host = os.environ.get("EMAIL_SMTP_HOST", "")
-        smtp_port = int(os.environ.get("EMAIL_SMTP_PORT", "587") or 587)
-        use_tls = os.environ.get("EMAIL_USE_TLS", "true").lower() in {"1", "true", "yes", "on"}
-        use_ssl = os.environ.get("EMAIL_USE_SSL", "false").lower() in {"1", "true", "yes", "on"}
-        smtp_user = os.environ.get("EMAIL_USER", "")
-        smtp_password = os.environ.get("EMAIL_PASSWORD", "")
-        sender_email = os.environ.get("EMAIL_FROM", smtp_user or "")
-        recipients_env = os.environ.get("FEEDBACK_RECIPIENTS", "22it084@charusat.edu.in,22it157@charusat.edu.in")
-        recipients = [r.strip() for r in recipients_env.split(",") if r.strip()]
+        content = build_resume_docx(req)
+        filename = (req.personalInfo.fullName or "resume").replace(" ", "_") + ".docx"
+        return StreamingResponse(
+            _io.BytesIO(content),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{filename}\""
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error building resume: {e}")
+        raise HTTPException(status_code=500, detail="Failed to build resume")
 
-        if not (smtp_host and (smtp_user and smtp_password) and sender_email and recipients):
-            print("Email not fully configured. Would have sent to:", recipients)
-            return False
 
-        # Build message
+def send_feedback_email(feedback: FeedbackRequest):
+    """Send feedback email to the team"""
+    try:
+        # Email configuration
+        sender_email = "cvision.feedback@gmail.com"  # You'll need to set up this email
+        sender_password = os.environ.get("EMAIL_PASSWORD", "")  # Set this in .env
+        recipients = ["22it084@charusat.edu.in", "22it157@charusat.edu.in"]
+        
+        # Create message
         msg = MIMEMultipart()
         msg['From'] = sender_email
         msg['To'] = ", ".join(recipients)
         msg['Subject'] = f"CVision Feedback: {feedback.subject}"
-        if feedback.email:
-            msg['Reply-To'] = feedback.email
-
+        
+        # Create email body
         body = f"""
         New feedback received for CVision Resume Analyzer
-
+        
         From: {feedback.name} ({feedback.email})
         Subject: {feedback.subject}
         Rating: {feedback.rating}/5 (if provided)
         Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
+        
         Message:
         {feedback.message}
-
+        
         ---
         This feedback was sent automatically from the CVision application.
         """
+        
         msg.attach(MIMEText(body, 'plain'))
-
-        # Connect and send
-        if use_ssl:
-            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        
+        # Send email using Gmail SMTP
+        if sender_password:
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+            server.quit()
+            return True
         else:
-            server = smtplib.SMTP(smtp_host, smtp_port)
-            if use_tls:
-                server.starttls()
-        if smtp_user:
-            server.login(smtp_user, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        return True
-
+            print("Email password not configured. Feedback would be sent to:", recipients)
+            print("Feedback content:", body)
+            return False
+            
     except Exception as e:
         print(f"Error sending feedback email: {e}")
         return False
