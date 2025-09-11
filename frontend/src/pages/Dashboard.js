@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import ResumeChart from '../components/ResumeChart';
@@ -29,17 +29,17 @@ const Dashboard = () => {
     recentActivity: []
   });
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch real analyses from backend
-      const response = await axios.get('/user-analyses/default_user');
-      const analyses = response.data.analyses || [];
+      // Fetch real analyses from backend (current user and fallback legacy default_user)
+      const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
+      const [respPrimary, respFallback] = await Promise.all([
+        axios.get(`/user-analyses/${currentUserId}`),
+        axios.get(`/user-analyses/default_user`).catch(() => ({ data: { analyses: [] } }))
+      ]);
+      const analyses = [...(respPrimary.data.analyses || []), ...(respFallback?.data?.analyses || [])];
       
       // Transform backend data to frontend format
       const transformedAnalyses = analyses.map((analysis, index) => ({
@@ -99,7 +99,11 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.uid, user?.email, user?.displayName]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const getScoreColor = (score) => {
     if (score >= 90) return 'text-green-400';
@@ -227,7 +231,6 @@ const Dashboard = () => {
                               <span className={`px-2 py-1 rounded-full text-xs ${getScoreBadge(analysis.score).color}`}>{getScoreBadge(analysis.score).text}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <button className="p-2 bg-blue-500/20 rounded-lg hover:bg-blue-500/30 transition-colors"><Eye size={16} className="text-blue-400" /></button>
                               <button onClick={async () => {
                                 try {
                                   const res = await axios.get(`/download-resume/${resume.id}`, { responseType: 'blob' });

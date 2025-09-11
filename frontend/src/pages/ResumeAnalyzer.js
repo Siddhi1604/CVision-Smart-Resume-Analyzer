@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useJobRoles } from '../context/JobRolesContext';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const ResumeAnalyzer = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -24,6 +25,8 @@ const ResumeAnalyzer = () => {
   const [analysisType, setAnalysisType] = useState('standard'); // 'standard' or 'ai'
   
   const { getCategories, getRolesByCategory, getRoleInfo, loading: rolesLoading } = useJobRoles();
+  const { user } = useAuth();
+  const userId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
 
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -60,6 +63,7 @@ const ResumeAnalyzer = () => {
     formData.append('file', selectedFile);
     formData.append('job_category', jobCategory);
     formData.append('job_role', jobRole);
+    formData.append('user_id', userId);
     
     if (customJobDescription) {
       formData.append('custom_job_description', customJobDescription);

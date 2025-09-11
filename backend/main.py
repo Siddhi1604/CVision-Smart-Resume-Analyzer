@@ -66,6 +66,33 @@ else:
 # Simple in-memory storage for resume analyses (in production, use a database)
 resume_analyses_storage = []
 
+# Simple disk persistence
+_STORAGE_DIR = os.path.join(_BACKEND_DIR, "storage")
+_UPLOADS_DIR = os.path.join(_BACKEND_DIR, "uploads")
+_ANALYSES_JSON = os.path.join(_STORAGE_DIR, "analyses.json")
+os.makedirs(_STORAGE_DIR, exist_ok=True)
+os.makedirs(_UPLOADS_DIR, exist_ok=True)
+
+def _load_analyses_from_disk():
+    global resume_analyses_storage
+    try:
+        if os.path.exists(_ANALYSES_JSON):
+            with open(_ANALYSES_JSON, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    resume_analyses_storage = data
+    except Exception as e:
+        print(f"Failed to load analyses from disk: {e}")
+
+def _save_analyses_to_disk():
+    try:
+        with open(_ANALYSES_JSON, "w", encoding="utf-8") as f:
+            json.dump(resume_analyses_storage, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"Failed to save analyses to disk: {e}")
+
+_load_analyses_from_disk()
+
 class ResumeAnalysis(BaseModel):
     id: Optional[str] = None
     user_id: str
@@ -629,6 +656,7 @@ async def analyze_resume(
     job_role: str = Form(...),
     custom_job_description: Optional[str] = Form(None),
     text: Optional[str] = Form(None),
+    user_id: str = Form("default_user"),
 ):
     if not file and not text:
         raise HTTPException(status_code=400, detail="Provide either a file or text")
@@ -723,9 +751,21 @@ async def analyze_resume(
         import uuid
         from datetime import datetime
         
+        # Persist upload to disk if provided
+        saved_path = None
+        if file and raw:
+            safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", file.filename or "resume")
+            unique_prefix = datetime.now().strftime("%Y%m%d%H%M%S%f")
+            saved_path = os.path.join(_UPLOADS_DIR, f"{unique_prefix}_{safe_name}")
+            try:
+                with open(saved_path, "wb") as out:
+                    out.write(raw)
+            except Exception as e:
+                print(f"Failed to save upload: {e}")
+
         analysis_data = {
             "id": str(uuid.uuid4()),
-            "user_id": "default_user",  # In a real app, get from auth context
+            "user_id": user_id or "default_user",
             "resume_name": file.filename if file else "Text Resume",
             "job_category": job_category,
             "job_role": job_role,
@@ -733,7 +773,7 @@ async def analyze_resume(
             "analysis_result": result,
             "created_at": datetime.now().isoformat(),
             "file_name": file.filename if file else None,
-            "file_bytes": raw if file else None,
+            "file_path": saved_path,
             "file_mime": (
                 "application/pdf" if (file and (file.filename or "").lower().endswith(".pdf")) else (
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if (file and (file.filename or "").lower().endswith(".docx")) else "text/plain"
@@ -741,6 +781,7 @@ async def analyze_resume(
             ) if file else None,
         }
         resume_analyses_storage.append(analysis_data)
+        _save_analyses_to_disk()
     except Exception as e:
         print(f"Failed to store analysis: {e}")
     
@@ -754,6 +795,7 @@ async def ai_analyze_resume(
     job_role: str = Form(...),
     custom_job_description: Optional[str] = Form(None),
     text: Optional[str] = Form(None),
+    user_id: str = Form("default_user"),
 ):
     if not file and not text:
         raise HTTPException(status_code=400, detail="Provide either a file or text")
@@ -840,10 +882,22 @@ Return ONLY valid JSON in this schema:
             try:
                 import uuid
                 from datetime import datetime
-                
+            
+                # Persist upload to disk if provided
+                saved_path = None
+                if file and raw:
+                    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", file.filename or "resume")
+                    unique_prefix = datetime.now().strftime("%Y%m%d%H%M%S%f")
+                    saved_path = os.path.join(_UPLOADS_DIR, f"{unique_prefix}_{safe_name}")
+                    try:
+                        with open(saved_path, "wb") as out:
+                            out.write(raw)
+                    except Exception as e:
+                        print(f"Failed to save upload: {e}")
+
                 analysis_data = {
                     "id": str(uuid.uuid4()),
-                    "user_id": "default_user",  # In a real app, get from auth context
+                    "user_id": user_id or "default_user",
                     "resume_name": file.filename if file else "Text Resume",
                     "job_category": job_category,
                     "job_role": job_role,
@@ -851,7 +905,7 @@ Return ONLY valid JSON in this schema:
                     "analysis_result": result,
                     "created_at": datetime.now().isoformat(),
                     "file_name": file.filename if file else None,
-                    "file_bytes": raw if file else None,
+                    "file_path": saved_path,
                     "file_mime": (
                         "application/pdf" if (file and (file.filename or "").lower().endswith(".pdf")) else (
                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if (file and (file.filename or "").lower().endswith(".docx")) else "text/plain"
@@ -859,6 +913,7 @@ Return ONLY valid JSON in this schema:
                     ) if file else None,
                 }
                 resume_analyses_storage.append(analysis_data)
+                _save_analyses_to_disk()
             except Exception as e:
                 print(f"Failed to store AI analysis: {e}")
             
@@ -907,14 +962,14 @@ async def download_resume(analysis_id: str):
         record = next((a for a in resume_analyses_storage if a["id"] == analysis_id), None)
         if not record:
             raise HTTPException(status_code=404, detail="Analysis not found")
-        if not record.get("file_bytes"):
+        file_path = record.get("file_path")
+        if not file_path or not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="No original file stored for this analysis")
 
-        filename = record.get("file_name") or "resume"
+        filename = record.get("file_name") or os.path.basename(file_path)
         mime = record.get("file_mime") or "application/octet-stream"
-        content = record["file_bytes"]
         return StreamingResponse(
-            _io.BytesIO(content),
+            open(file_path, "rb"),
             media_type=mime,
             headers={
                 "Content-Disposition": f"attachment; filename=\"{filename}\""

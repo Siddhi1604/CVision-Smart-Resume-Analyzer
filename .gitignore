@@ -16,3 +16,16 @@ backend/.env
 # API Keys and Secrets
 **/secrets/
 **/keys/
+
+# Privacy: never commit user uploads or persisted analyses
+backend/uploads/
+backend/storage/
+
+# Bytecode & caches
+**/__pycache__/
+*.pyc
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
