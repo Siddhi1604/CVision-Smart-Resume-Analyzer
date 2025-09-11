@@ -228,7 +228,23 @@ const Dashboard = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <button className="p-2 bg-blue-500/20 rounded-lg hover:bg-blue-500/30 transition-colors"><Eye size={16} className="text-blue-400" /></button>
-                              <button className="p-2 bg-green-500/20 rounded-lg hover:bg-green-500/30 transition-colors"><Download size={16} className="text-green-400" /></button>
+                              <button onClick={async () => {
+                                try {
+                                  const res = await axios.get(`/download-resume/${resume.id}`, { responseType: 'blob' });
+                                  const blob = new Blob([res.data]);
+                                  const url = window.URL.createObjectURL(blob);
+                                  const link = document.createElement('a');
+                                  const safeName = (resume.title || 'resume').toString().replace(/\s+/g, '_');
+                                  link.href = url;
+                                  link.setAttribute('download', safeName);
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  link.remove();
+                                  window.URL.revokeObjectURL(url);
+                                } catch (e) {
+                                  console.error('Download failed', e);
+                                }
+                              }} className="p-2 bg-green-500/20 rounded-lg hover:bg-green-500/30 transition-colors"><Download size={16} className="text-green-400" /></button>
                             </div>
                           </div>
                         )}

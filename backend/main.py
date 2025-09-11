@@ -732,7 +732,13 @@ async def analyze_resume(
             "analysis_type": "standard",
             "analysis_result": result,
             "created_at": datetime.now().isoformat(),
-            "file_name": file.filename if file else None
+            "file_name": file.filename if file else None,
+            "file_bytes": raw if file else None,
+            "file_mime": (
+                "application/pdf" if (file and (file.filename or "").lower().endswith(".pdf")) else (
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if (file and (file.filename or "").lower().endswith(".docx")) else "text/plain"
+                )
+            ) if file else None,
         }
         resume_analyses_storage.append(analysis_data)
     except Exception as e:
@@ -844,7 +850,13 @@ Return ONLY valid JSON in this schema:
                     "analysis_type": "ai",
                     "analysis_result": result,
                     "created_at": datetime.now().isoformat(),
-                    "file_name": file.filename if file else None
+                    "file_name": file.filename if file else None,
+                    "file_bytes": raw if file else None,
+                    "file_mime": (
+                        "application/pdf" if (file and (file.filename or "").lower().endswith(".pdf")) else (
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if (file and (file.filename or "").lower().endswith(".docx")) else "text/plain"
+                        )
+                    ) if file else None,
                 }
                 resume_analyses_storage.append(analysis_data)
             except Exception as e:
@@ -889,6 +901,30 @@ async def store_analysis(analysis: ResumeAnalysis):
 async def get_user_analyses(user_id: str):
     user_analyses = [a for a in resume_analyses_storage if a["user_id"] == user_id]
     return {"analyses": user_analyses}
+@app.get("/download-resume/{analysis_id}")
+async def download_resume(analysis_id: str):
+    try:
+        record = next((a for a in resume_analyses_storage if a["id"] == analysis_id), None)
+        if not record:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        if not record.get("file_bytes"):
+            raise HTTPException(status_code=404, detail="No original file stored for this analysis")
+
+        filename = record.get("file_name") or "resume"
+        mime = record.get("file_mime") or "application/octet-stream"
+        content = record["file_bytes"]
+        return StreamingResponse(
+            _io.BytesIO(content),
+            media_type=mime,
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{filename}\""
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Failed to download resume: {e}")
+        raise HTTPException(status_code=500, detail="Failed to download resume")
 
 
 @app.post("/send-feedback")
