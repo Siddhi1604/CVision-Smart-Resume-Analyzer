@@ -1,0 +1,11 @@
+# Backend Environment Variables for Heroku
+# Copy this file to .env and fill in your actual values
+
+# OpenAI/OpenRouter API Key for AI analysis
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# Gmail App Password for sending feedback emails
+EMAIL_PASSWORD=your_gmail_app_password_here
+
+# Allowed origins for CORS (your frontend URL)
+BACKEND_ALLOWED_ORIGINS=https://your-frontend-app.herokuapp.com
