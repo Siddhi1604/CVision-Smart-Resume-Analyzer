@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Optional, Set, Tuple
+from typing import List, Dict, Optional, Set, Tuple, Any
 import io
 import json
 import re
@@ -14,7 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
-import io as _io
+import httpx
 
 try:
     import docx  # python-docx
@@ -74,6 +74,7 @@ os.makedirs(_STORAGE_DIR, exist_ok=True)
 os.makedirs(_UPLOADS_DIR, exist_ok=True)
 
 def _load_analyses_from_disk():
+    """Load resume analyses from disk storage"""
     global resume_analyses_storage
     try:
         if os.path.exists(_ANALYSES_JSON):
@@ -85,12 +86,14 @@ def _load_analyses_from_disk():
         print(f"Failed to load analyses from disk: {e}")
 
 def _save_analyses_to_disk():
+    """Save resume analyses to disk storage"""
     try:
         with open(_ANALYSES_JSON, "w", encoding="utf-8") as f:
             json.dump(resume_analyses_storage, f, ensure_ascii=False)
     except Exception as e:
         print(f"Failed to save analyses to disk: {e}")
 
+# Initialize storage
 _load_analyses_from_disk()
 
 class ResumeAnalysis(BaseModel):
@@ -166,6 +169,16 @@ class ResumeBuildRequest(BaseModel):
     projects: List[ProjectItem] = []
     skills: Skills = Skills()
     template: str = "Modern"
+
+
+# ==== Job Search Models ====
+class JobSearchRequest(BaseModel):
+    page: int = 0
+    descending: bool = False
+    company: Optional[str] = None
+    category: Optional[str] = None
+    level: Optional[str] = None
+    location: Optional[str] = None
 
 
 def _add_section_title(d, title: str, template: str):
@@ -335,7 +348,7 @@ def build_resume_docx(payload: ResumeBuildRequest) -> bytes:
                 document.add_paragraph(proj.link)
 
     # Serialize to bytes
-    buffer = _io.BytesIO()
+    buffer = io.BytesIO()
     document.save(buffer)
     buffer.seek(0)
     return buffer.read()
@@ -347,7 +360,7 @@ async def build_resume(req: ResumeBuildRequest):
         content = build_resume_docx(req)
         filename = (req.personalInfo.fullName or "resume").replace(" ", "_") + ".docx"
         return StreamingResponse(
-            _io.BytesIO(content),
+            io.BytesIO(content),
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={
                 "Content-Disposition": f"attachment; filename=\"{filename}\""
@@ -411,8 +424,8 @@ def send_feedback_email(feedback: FeedbackRequest):
 
 
 def _load_roles_dataset() -> Dict[str, Dict[str, List[str]]]:
+    """Load job roles dataset from roles.json file"""
     try:
-        # Resolve path whether run from repo root or backend directory
         repo_root = os.path.dirname(os.path.abspath(__file__))
         roles_path = os.path.join(repo_root, "roles.json")
         with open(roles_path, "r", encoding="utf-8") as f:
@@ -422,6 +435,8 @@ def _load_roles_dataset() -> Dict[str, Dict[str, List[str]]]:
 
 
 ROLES_DATASET = _load_roles_dataset()
+
+# ==== Job Search Service ====
 
 
 @app.get("/job-categories")
@@ -448,6 +463,7 @@ async def list_job_roles(category: Optional[str] = None):
 
 
 def extract_text_from_upload(file: UploadFile) -> str:
+    """Extract text content from uploaded resume file (PDF, DOCX, or plain text)"""
     data = file.file.read()
     # Reset pointer so other functions can re-read if needed
     try:
@@ -459,38 +475,38 @@ def extract_text_from_upload(file: UploadFile) -> str:
     if filename.endswith(".pdf"):
         try:
             from pdfminer.high_level import extract_text as pdf_text
-
             return pdf_text(io.BytesIO(data)) or ""
         except Exception:
             return ""
-    if filename.endswith(".docx"):
+    elif filename.endswith(".docx"):
         try:
             import docx  # python-docx
-
             doc = docx.Document(io.BytesIO(data))
             return "\n".join([p.text for p in doc.paragraphs])
         except Exception:
             return ""
-    # Fallback plain text
-    try:
-        return data.decode("utf-8", errors="ignore")
-    except Exception:
-        return ""
+    else:
+        # Fallback plain text
+        try:
+            return data.decode("utf-8", errors="ignore")
+        except Exception:
+            return ""
 
 
 def word_present(text: str, term: str) -> bool:
+    """Check if a word is present in text using word boundaries"""
     return re.search(rf"\b{re.escape(term)}\b", text, flags=re.I) is not None
 
-
 def normalize_text(text: str) -> str:
+    """Normalize text for analysis by cleaning and standardizing format"""
     lowered = text.lower()
     # Replace punctuation and slashes with spaces while preserving tokens like c++ -> c++
     cleaned = re.sub(r"[^a-z0-9+#./-]", " ", lowered)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
 
-
 def tokenize(text: str) -> Tuple[List[str], List[str]]:
+    """Tokenize text into words and bigrams for analysis"""
     tokens = re.findall(r"[a-z0-9+.#-]+", text.lower())
     bigrams = [f"{tokens[i]} {tokens[i+1]}" for i in range(len(tokens)-1)] if len(tokens) > 1 else []
     return tokens, bigrams
@@ -542,6 +558,7 @@ ALIASES: Dict[str, List[str]] = {
 
 
 def tokens_contain(tokens: List[str], target: str) -> bool:
+    """Check if target string is contained in tokens with fuzzy matching"""
     t = target.lower()
     if t in tokens:
         return True
@@ -554,13 +571,13 @@ def tokens_contain(tokens: List[str], target: str) -> bool:
             return True
     return False
 
-
 def fuzzy_similar(a: str, b: str, threshold: float = 0.9) -> bool:
+    """Check if two strings are similar using sequence matching"""
     from difflib import SequenceMatcher
     return SequenceMatcher(None, a.lower(), b.lower()).ratio() >= threshold
 
-
 def match_skill(resume_tokens: List[str], resume_bigrams: List[str], skill: str) -> bool:
+    """Match a skill against resume tokens using aliases and fuzzy matching"""
     candidates = [skill] + ALIASES.get(skill.lower(), [])
     # Exact token or bigram match
     for c in candidates:
@@ -577,8 +594,8 @@ def match_skill(resume_tokens: List[str], resume_bigrams: List[str], skill: str)
                 return True
     return False
 
-
 def score_keyword_match(text: str, skills: List[str]):
+    """Score how well resume matches required skills"""
     normalized = normalize_text(text)
     tokens, bigrams = tokenize(normalized)
     present = []
@@ -589,41 +606,25 @@ def score_keyword_match(text: str, skills: List[str]):
     score = round((len(present) / max(1, len(skills))) * 100)
     return score, missing
 
-
 def score_sections(text: str) -> int:
+    """Score resume based on presence of standard sections"""
     sections = [
-        "summary",
-        "objective",
-        "skills",
-        "experience",
-        "employment",
-        "education",
-        "projects",
-        "certifications",
-        "contact",
+        "summary", "objective", "skills", "experience", "employment",
+        "education", "projects", "certifications", "contact"
     ]
     found = sum(1 for s in sections if word_present(text, s))
     return round((found / len(sections)) * 100)
 
-
 def get_present_sections(text: str) -> List[str]:
-    """Return list of section names detected in the resume text."""
+    """Return list of section names detected in the resume text"""
     sections = [
-        "summary",
-        "objective",
-        "skills",
-        "experience",
-        "employment",
-        "education",
-        "projects",
-        "certifications",
-        "contact",
+        "summary", "objective", "skills", "experience", "employment",
+        "education", "projects", "certifications", "contact"
     ]
-    present = [s for s in sections if word_present(text, s)]
-    return present
-
+    return [s for s in sections if word_present(text, s)]
 
 def score_format(text: str, raw_len: int) -> int:
+    """Score resume format and structure"""
     score = 100
     words = len(re.findall(r"\w+", text))
     if words < 250:
@@ -993,4 +994,318 @@ async def send_feedback(feedback: FeedbackRequest):
             return {"message": "Feedback logged (email not configured)", "status": "logged"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send feedback: {str(e)}")
+
+
+# ==== Job Data Functions ====
+
+def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "") -> dict:
+    """Enhanced mock data as fallback"""
+    all_jobs = [
+        {
+            "id": 1,
+            "title": "Senior Software Engineer",
+            "company": "GitHub",
+            "location": "San Francisco, CA",
+            "type": "Full-time",
+            "salary": "$120,000 - $180,000",
+            "experience": "Senior Level",
+            "description": "Join GitHub's engineering team to build the future of software development. Work on distributed systems, API design, and developer tools used by millions worldwide.",
+            "posted": "2 days ago",
+            "logo": "GH",
+            "landing_page": "https://github.com/careers",
+            "categories": ["Engineering"],
+            "tags": ["Python", "Go", "Kubernetes", "Cloud"]
+        },
+        {
+            "id": 2,
+            "title": "Frontend Developer",
+            "company": "Microsoft",
+            "location": "Seattle, WA",
+            "type": "Full-time",
+            "salary": "$100,000 - $150,000",
+            "experience": "Mid Level",
+            "description": "Build user-facing features for Microsoft's cloud platforms. Collaborate with design and backend teams to create intuitive user experiences.",
+            "posted": "1 week ago",
+            "logo": "MS",
+            "landing_page": "https://careers.microsoft.com",
+            "categories": ["Engineering"],
+            "tags": ["React", "TypeScript", "Azure", "CSS"]
+        },
+        {
+            "id": 3,
+            "title": "DevOps Engineer",
+            "company": "Amazon",
+            "location": "Seattle, WA",
+            "type": "Full-time",
+            "salary": "$110,000 - $160,000",
+            "experience": "Mid Level",
+            "description": "Manage infrastructure and deployment pipelines for AWS services. Automate processes and ensure high availability of critical systems.",
+            "posted": "3 days ago",
+            "logo": "AM",
+            "landing_page": "https://amazon.jobs",
+            "categories": ["Engineering"],
+            "tags": ["AWS", "Docker", "Kubernetes", "Terraform"]
+        },
+        {
+            "id": 4,
+            "title": "Data Scientist",
+            "company": "Google",
+            "location": "Mountain View, CA",
+            "type": "Full-time",
+            "salary": "$130,000 - $200,000",
+            "experience": "Senior Level",
+            "description": "Apply machine learning and data analysis to solve complex problems. Work with large datasets to drive product decisions and user insights.",
+            "posted": "5 days ago",
+            "logo": "GO",
+            "landing_page": "https://careers.google.com",
+            "categories": ["Data Science"],
+            "tags": ["Python", "Machine Learning", "TensorFlow", "SQL"]
+        },
+        {
+            "id": 5,
+            "title": "Full Stack Developer",
+            "company": "Netflix",
+            "location": "Los Gatos, CA",
+            "type": "Full-time",
+            "salary": "$115,000 - $170,000",
+            "experience": "Mid Level",
+            "description": "Develop end-to-end solutions for Netflix's streaming platform. Build features that enhance the viewing experience for 200+ million subscribers.",
+            "posted": "1 week ago",
+            "logo": "NF",
+            "landing_page": "https://jobs.netflix.com",
+            "categories": ["Engineering"],
+            "tags": ["JavaScript", "Node.js", "React", "AWS"]
+        },
+        {
+            "id": 6,
+            "title": "Backend Engineer",
+            "company": "Stripe",
+            "location": "San Francisco, CA",
+            "type": "Full-time",
+            "salary": "$125,000 - $185,000",
+            "experience": "Senior Level",
+            "description": "Build scalable payment processing systems. Design APIs and services that handle billions of dollars in transactions securely and reliably.",
+            "posted": "4 days ago",
+            "logo": "ST",
+            "landing_page": "https://stripe.com/jobs",
+            "categories": ["Engineering"],
+            "tags": ["Python", "PostgreSQL", "Redis", "Microservices"]
+        },
+        {
+            "id": 7,
+            "title": "Mobile Developer",
+            "company": "Uber",
+            "location": "San Francisco, CA",
+            "type": "Full-time",
+            "salary": "$105,000 - $155,000",
+            "experience": "Mid Level",
+            "description": "Develop mobile applications for Uber's platform. Create seamless experiences for riders and drivers across iOS and Android platforms.",
+            "posted": "6 days ago",
+            "logo": "UB",
+            "landing_page": "https://www.uber.com/careers",
+            "categories": ["Engineering"],
+            "tags": ["React Native", "iOS", "Android", "JavaScript"]
+        },
+        {
+            "id": 8,
+            "title": "Security Engineer",
+            "company": "Cloudflare",
+            "location": "San Francisco, CA",
+            "type": "Full-time",
+            "salary": "$120,000 - $180,000",
+            "experience": "Senior Level",
+            "description": "Protect Cloudflare's infrastructure and customer data. Implement security measures and respond to threats across our global network.",
+            "posted": "2 days ago",
+            "logo": "CF",
+            "landing_page": "https://www.cloudflare.com/careers",
+            "categories": ["Security"],
+            "tags": ["Security", "Python", "Go", "Network Security"]
+        },
+        {
+            "id": 9,
+            "title": "Product Manager",
+            "company": "Meta",
+            "location": "Menlo Park, CA",
+            "type": "Full-time",
+            "salary": "$140,000 - $200,000",
+            "experience": "Senior Level",
+            "description": "Lead product strategy for Meta's family of apps. Work with engineering and design teams to build products used by billions of people.",
+            "posted": "1 day ago",
+            "logo": "ME",
+            "landing_page": "https://www.metacareers.com",
+            "categories": ["Product"],
+            "tags": ["Product Management", "Strategy", "Analytics", "Leadership"]
+        },
+        {
+            "id": 10,
+            "title": "Junior Software Engineer",
+            "company": "Slack",
+            "location": "Remote",
+            "type": "Full-time",
+            "salary": "$80,000 - $120,000",
+            "experience": "Entry Level",
+            "description": "Join Slack's engineering team as a junior developer. Learn from experienced engineers while building features for workplace collaboration.",
+            "posted": "3 days ago",
+            "logo": "SL",
+            "landing_page": "https://slack.com/careers",
+            "categories": ["Engineering"],
+            "tags": ["JavaScript", "Python", "API", "Collaboration Tools"]
+        },
+        {
+            "id": 11,
+            "title": "UX Designer",
+            "company": "Airbnb",
+            "location": "San Francisco, CA",
+            "type": "Full-time",
+            "salary": "$110,000 - $160,000",
+            "experience": "Mid Level",
+            "description": "Design intuitive experiences for Airbnb's platform. Research user needs and create designs that help people belong anywhere.",
+            "posted": "1 week ago",
+            "logo": "AB",
+            "landing_page": "https://careers.airbnb.com",
+            "categories": ["Design"],
+            "tags": ["UI/UX", "Figma", "User Research", "Design Systems"]
+        },
+        {
+            "id": 12,
+            "title": "Machine Learning Engineer",
+            "company": "OpenAI",
+            "location": "San Francisco, CA",
+            "type": "Full-time",
+            "salary": "$150,000 - $250,000",
+            "experience": "Senior Level",
+            "description": "Develop and deploy large-scale machine learning models. Work on cutting-edge AI research and applications that benefit humanity.",
+            "posted": "Today",
+            "logo": "OA",
+            "landing_page": "https://openai.com/careers",
+            "categories": ["AI/ML"],
+            "tags": ["Machine Learning", "PyTorch", "Deep Learning", "NLP"]
+        },
+        {
+            "id": 13,
+            "title": "React Developer",
+            "company": "Spotify",
+            "location": "Stockholm, Sweden",
+            "type": "Full-time",
+            "salary": "$95,000 - $140,000",
+            "experience": "Mid Level",
+            "description": "Build engaging user interfaces for Spotify's music streaming platform. Work with React, TypeScript, and modern web technologies.",
+            "posted": "2 days ago",
+            "logo": "SP",
+            "landing_page": "https://www.spotifyjobs.com",
+            "categories": ["Engineering"],
+            "tags": ["React", "TypeScript", "JavaScript", "Frontend"]
+        },
+        {
+            "id": 14,
+            "title": "Python Developer",
+            "company": "Dropbox",
+            "location": "Remote",
+            "type": "Full-time",
+            "salary": "$110,000 - $165,000",
+            "experience": "Mid Level",
+            "description": "Develop backend services and APIs using Python. Work on distributed systems that handle billions of files.",
+            "posted": "1 week ago",
+            "logo": "DB",
+            "landing_page": "https://jobs.dropbox.com",
+            "categories": ["Engineering"],
+            "tags": ["Python", "Django", "API", "Distributed Systems"]
+        },
+        {
+            "id": 15,
+            "title": "DevOps Specialist",
+            "company": "GitLab",
+            "location": "Remote",
+            "type": "Full-time",
+            "salary": "$100,000 - $150,000",
+            "experience": "Senior Level",
+            "description": "Manage CI/CD pipelines and infrastructure for GitLab's platform. Work with Kubernetes, Docker, and cloud technologies.",
+            "posted": "3 days ago",
+            "logo": "GL",
+            "landing_page": "https://about.gitlab.com/jobs",
+            "categories": ["Engineering"],
+            "tags": ["DevOps", "Kubernetes", "Docker", "CI/CD"]
+        }
+    ]
+    
+    # Filter jobs based on keyword if provided
+    if keyword:
+        keyword_lower = keyword.lower()
+        filtered_jobs = [
+            job for job in all_jobs 
+            if keyword_lower in job['title'].lower() or 
+               keyword_lower in job['company'].lower() or
+               any(keyword_lower in tag.lower() for tag in job['tags'])
+        ]
+    else:
+        filtered_jobs = all_jobs
+    
+    # Pagination logic
+    jobs_per_page = 10
+    start_idx = page * jobs_per_page
+    end_idx = start_idx + jobs_per_page
+    page_jobs = filtered_jobs[start_idx:end_idx]
+    
+    return {
+        "page_count": (len(filtered_jobs) + jobs_per_page - 1) // jobs_per_page,
+        "page": page,
+        "jobs": page_jobs,
+        "total_jobs": len(filtered_jobs),
+        "source": "Mock Data"
+    }
+
+@app.get("/api/jobs")
+async def search_jobs(
+    page: int = 0,
+    keyword: str = "software engineer",
+    location: str = "United States",
+    job_type: str = "full_time"
+):
+    """Search jobs using enhanced mock data (external APIs currently unavailable)"""
+    print(f"Job search request: keyword='{keyword}', location='{location}', job_type='{job_type}', page={page}")
+    
+    # Use the enhanced mock data function
+    try:
+        return get_enhanced_mock_jobs(page, keyword, location)
+    except Exception as e:
+        print(f"Error with static data: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return the most basic response possible
+        return {
+            "page_count": 1,
+            "page": 0,
+            "jobs": [],
+            "total_jobs": 0,
+            "source": "Emergency Fallback"
+        }
+
+@app.get("/api/jobs/{job_id}")
+async def get_job_details(job_id: str):
+    """Get detailed information about a specific job"""
+    try:
+        job_id_int = int(job_id)
+        
+        # Get all jobs from the mock data function
+        all_jobs_data = get_enhanced_mock_jobs(0, "", "")  # Get all jobs without filtering
+        all_jobs = all_jobs_data.get("jobs", [])
+        
+        # Find job by ID
+        job = next((j for j in all_jobs if j["id"] == job_id_int), None)
+        
+        if job:
+            # Add additional details for the detailed view
+            job["how_to_apply"] = "Please visit the company's careers page to apply for this position."
+            job["company_url"] = job.get("landing_page", "#")
+            return job
+        else:
+            raise HTTPException(status_code=404, detail="Job not found")
+                
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching job details: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch job details")
 

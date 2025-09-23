@@ -7,5 +7,9 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 # Gmail App Password for sending feedback emails
 EMAIL_PASSWORD=your_gmail_app_password_here
 
+# The Muse API Key (optional - for higher rate limits)
+# Get your API key from: https://www.themuse.com/developers/api/v2
+MUSE_API_KEY=your_muse_api_key_here
+
 # Allowed origins for CORS (your frontend URL)
 BACKEND_ALLOWED_ORIGINS=https://your-frontend-app.herokuapp.com

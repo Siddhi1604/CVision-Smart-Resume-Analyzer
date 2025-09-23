@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -8,77 +8,93 @@ import {
   Clock,
   DollarSign,
   Filter,
-  Star
+  Star,
+  Loader2,
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
+import axios from 'axios';
 
 const JobSearch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [location, setLocation] = useState('');
   const [jobType, setJobType] = useState('');
   const [experience, setExperience] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasMoreJobs, setHasMoreJobs] = useState(false);
 
-  // Mock job data
-  const jobs = [
-    {
-      id: 1,
-      title: 'Senior Software Engineer',
-      company: 'TechCorp Inc.',
-      location: 'San Francisco, CA',
-      type: 'Full-time',
-      salary: '$120,000 - $150,000',
-      experience: '5+ years',
-      description: 'We are looking for a Senior Software Engineer to join our growing team...',
-      posted: '2 days ago',
-      logo: 'TC'
-    },
-    {
-      id: 2,
-      title: 'Frontend Developer',
-      company: 'StartupXYZ',
-      location: 'Remote',
-      type: 'Full-time',
-      salary: '$80,000 - $100,000',
-      experience: '2-4 years',
-      description: 'Join our dynamic team as a Frontend Developer and help build amazing user experiences...',
-      posted: '1 week ago',
-      logo: 'SX'
-    },
-    {
-      id: 3,
-      title: 'Data Scientist',
-      company: 'DataFlow Analytics',
-      location: 'New York, NY',
-      type: 'Full-time',
-      salary: '$110,000 - $130,000',
-      experience: '3-5 years',
-      description: 'We are seeking a talented Data Scientist to help us extract insights from large datasets...',
-      posted: '3 days ago',
-      logo: 'DF'
-    },
-    {
-      id: 4,
-      title: 'DevOps Engineer',
-      company: 'CloudTech Solutions',
-      location: 'Austin, TX',
-      type: 'Full-time',
-      salary: '$95,000 - $115,000',
-      experience: '3+ years',
-      description: 'Join our DevOps team and help us build scalable infrastructure solutions...',
-      posted: '5 days ago',
-      logo: 'CT'
-    }
-  ];
-
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLocation = !location || job.location.toLowerCase().includes(location.toLowerCase());
-    const matchesType = !jobType || job.type === jobType;
-    const matchesExperience = !experience || job.experience.includes(experience);
+  // Fetch jobs from API
+  const fetchJobs = async (page = 0, resetJobs = false) => {
+    setLoading(true);
+    setError(null);
     
-    return matchesSearch && matchesLocation && matchesType && matchesExperience;
-  });
+    try {
+      const params = new URLSearchParams({
+        page: page.toString()
+      });
+
+      // Add search filters for GitHub Jobs API
+      if (searchTerm) params.append('keyword', searchTerm);
+      if (location) params.append('location', location);
+      if (jobType && jobType !== 'All Types') {
+        // Convert job type to GitHub Jobs format
+        const jobTypeMap = {
+          'Full-time': 'full_time',
+          'Part-time': 'part_time',
+          'Contract': 'contract',
+          'Internship': 'internship'
+        };
+        params.append('job_type', jobTypeMap[jobType] || 'full_time');
+      }
+
+      const response = await axios.get(`/api/jobs?${params}`);
+      const { jobs: newJobs, page_count } = response.data;
+      
+      if (resetJobs) {
+        setJobs(newJobs);
+      } else {
+        setJobs(prevJobs => [...prevJobs, ...newJobs]);
+      }
+      
+      setTotalPages(page_count);
+      setCurrentPage(page);
+      setHasMoreJobs(page < page_count - 1);
+      
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+      setError(err.response?.data?.detail || 'Failed to fetch jobs. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchJobs(0, true);
+  }, []);
+
+  // Handle search
+  const handleSearch = () => {
+    fetchJobs(0, true);
+  };
+
+  // Load more jobs
+  const loadMoreJobs = () => {
+    if (!loading && hasMoreJobs) {
+      fetchJobs(currentPage + 1, false);
+    }
+  };
+
+  // Handle job click to open external link
+  const handleJobClick = (job) => {
+    if (job.landing_page) {
+      window.open(job.landing_page, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -90,7 +106,7 @@ const JobSearch = () => {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4">Job Search</h1>
           <p className="text-xl text-gray-300">
-            Find your next career opportunity
+            Find your next career opportunity with our curated job listings
           </p>
         </div>
 
@@ -105,7 +121,7 @@ const JobSearch = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Job title, company, or keywords"
+                  placeholder="Job title or keywords"
                   className="w-full pl-10 pr-4 py-3 bg-black/20 border border-gray-600 rounded-lg text-white focus:border-green-400 focus:outline-none"
                 />
               </div>
@@ -148,31 +164,53 @@ const JobSearch = () => {
                 className="w-full p-3 bg-black/20 border border-gray-600 rounded-lg text-white focus:border-green-400 focus:outline-none"
               >
                 <option value="">All Levels</option>
-                <option value="Entry">Entry Level</option>
-                <option value="Mid">Mid Level</option>
-                <option value="Senior">Senior Level</option>
+                <option value="Entry Level">Entry Level</option>
+                <option value="Mid Level">Mid Level</option>
+                <option value="Senior Level">Senior Level</option>
                 <option value="Lead">Lead</option>
               </select>
             </div>
 
             <div className="flex items-end">
-              <button className="w-full btn btn-primary flex items-center justify-center gap-2">
-                <Filter size={16} />
-                Filter
+              <button 
+                onClick={handleSearch}
+                disabled={loading}
+                className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <Filter size={16} />}
+                {loading ? 'Searching...' : 'Search'}
               </button>
             </div>
           </div>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card border-red-500/30 bg-red-500/10 mb-8"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} className="text-red-400" />
+              <div>
+                <h3 className="text-red-400 font-semibold">Error</h3>
+                <p className="text-red-300">{error}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Job Listings */}
         <div className="space-y-6">
-          {filteredJobs.map((job, index) => (
+          {jobs.map((job, index) => (
             <motion.div
               key={job.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="card hover:border-green-400/30 transition-all duration-300 cursor-pointer"
+              className="card hover:border-green-400/30 transition-all duration-300 cursor-pointer group"
+              onClick={() => handleJobClick(job)}
             >
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -182,7 +220,9 @@ const JobSearch = () => {
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h3 className="text-xl font-semibold mb-1">{job.title}</h3>
+                      <h3 className="text-xl font-semibold mb-1 group-hover:text-green-400 transition-colors">
+                        {job.title}
+                      </h3>
                       <div className="flex items-center gap-4 text-sm text-gray-400">
                         <div className="flex items-center gap-1">
                           <Building size={14} />
@@ -194,9 +234,14 @@ const JobSearch = () => {
                         </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
                     <button className="text-gray-400 hover:text-yellow-400">
                       <Star size={16} />
                     </button>
+                      {job.landing_page && (
+                        <ExternalLink size={16} className="text-gray-400 group-hover:text-green-400 transition-colors" />
+                      )}
+                    </div>
                   </div>
                   
                   <p className="text-gray-300 mb-4 line-clamp-2">{job.description}</p>
@@ -218,13 +263,43 @@ const JobSearch = () => {
                       {job.posted}
                     </div>
                   </div>
+
+                  {/* Job Categories/Tags */}
+                  {(job.categories?.length > 0 || job.tags?.length > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {job.categories?.slice(0, 3).map((category, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
+                          {category}
+                        </span>
+                      ))}
+                      {job.tags?.slice(0, 2).map((tag, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
 
-        {filteredJobs.length === 0 && (
+        {/* Loading State */}
+        {loading && jobs.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <Loader2 size={48} className="mx-auto mb-4 text-green-400 animate-spin" />
+            <h3 className="text-xl font-semibold mb-2">Loading jobs...</h3>
+            <p className="text-gray-400">Please wait while we fetch the latest opportunities</p>
+          </motion.div>
+        )}
+
+        {/* No Jobs Found */}
+        {!loading && jobs.length === 0 && !error && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -237,17 +312,35 @@ const JobSearch = () => {
         )}
 
         {/* Load More Button */}
-        {filteredJobs.length > 0 && (
+        {hasMoreJobs && jobs.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
             className="text-center mt-8"
           >
-            <button className="btn btn-secondary">
-              Load More Jobs
+            <button 
+              onClick={loadMoreJobs}
+              disabled={loading}
+              className="btn btn-secondary disabled:opacity-50 flex items-center gap-2 mx-auto"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Load More Jobs'
+              )}
             </button>
           </motion.div>
+        )}
+
+        {/* Pagination Info */}
+        {jobs.length > 0 && (
+          <div className="text-center mt-6 text-sm text-gray-400">
+            Showing {jobs.length} jobs • Page {currentPage + 1} of {totalPages}
+          </div>
         )}
       </motion.div>
     </div>

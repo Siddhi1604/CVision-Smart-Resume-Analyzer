@@ -52,6 +52,35 @@ Protected routes use `src/components/ProtectedRoute.js` and `src/context/AuthCon
 ### Data fetching
 - `src/context/JobRolesContext.js` requests job roles from `/job-roles` (relative to the dev server/proxy) and provides helper selectors with a built-in fallback dataset.
 
+### Job Search Integration
+The Job Search feature now integrates with The Muse API to provide real job listings:
+
+#### Features:
+- **Real Job Data**: Fetches live job listings from The Muse API
+- **Advanced Filtering**: Search by company, location, experience level
+- **Pagination**: Load more jobs with infinite scroll
+- **External Links**: Click jobs to view full details on company websites
+- **Error Handling**: Graceful handling of API errors and rate limits
+- **Loading States**: Smooth loading indicators and user feedback
+
+#### API Endpoints:
+- `GET /api/jobs` - Search jobs with filters
+- `GET /api/jobs/{job_id}` - Get detailed job information
+- `GET /api/companies` - Search companies
+- `GET /api/companies/{company_id}` - Get company details
+
+#### Rate Limits:
+- Without API key: 500 requests per hour
+- With API key: 3600 requests per hour
+- Rate limit headers are handled automatically
+
+#### Environment Setup:
+Add `MUSE_API_KEY` to your backend environment variables for higher rate limits:
+```dotenv
+MUSE_API_KEY=your_muse_api_key_here
+```
+Get your API key from: https://www.themuse.com/developers/api/v2
+
 ### Styling
 - Tailwind CSS configured via `tailwind.config.js` and `postcss.config.js`.
 - Global styles and utility classes in `src/index.css`.
