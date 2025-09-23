@@ -1254,31 +1254,123 @@ def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "")
         "source": "Mock Data"
     }
 
+async def fetch_adzuna_jobs(page: int = 0, keyword: str = "", location: str = "us") -> dict:
+    """Fetch real jobs from Adzuna API"""
+    
+    # Get API credentials from environment
+    app_id = os.environ.get("ADZUNA_APP_ID")
+    api_key = os.environ.get("ADZUNA_API_KEY")
+    
+    if not app_id or not api_key:
+        print("Adzuna API credentials not found, using fallback")
+        return get_enhanced_mock_jobs(page, keyword, location)
+    
+    try:
+        # Adzuna API URL
+        base_url = f"https://api.adzuna.com/v1/api/jobs/{location}/search/{page + 1}"
+        
+        params = {
+            "app_id": app_id,
+            "app_key": api_key,
+            "results_per_page": 10,
+            "what": keyword or "software engineer",
+            "content-type": "application/json"
+        }
+        
+        if location and location != "us":
+            params["where"] = location
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.get(base_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+        # Transform Adzuna response to match our frontend format
+        jobs = []
+        for idx, job in enumerate(data.get("results", [])):
+            # Generate a unique ID
+            job_id = job.get("id", f"{page}_{idx}")
+            
+            # Extract salary info
+            salary_min = job.get("salary_min")
+            salary_max = job.get("salary_max")
+            salary = ""
+            if salary_min and salary_max:
+                salary = f"${salary_min:,.0f} - ${salary_max:,.0f}"
+            elif salary_min:
+                salary = f"${salary_min:,.0f}+"
+            
+            # Format the job posting date
+            created = job.get("created")
+            posted = "Recently"
+            if created:
+                try:
+                    from datetime import datetime
+                    created_date = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                    days_ago = (datetime.now() - created_date.replace(tzinfo=None)).days
+                    if days_ago == 0:
+                        posted = "Today"
+                    elif days_ago == 1:
+                        posted = "1 day ago"
+                    elif days_ago < 7:
+                        posted = f"{days_ago} days ago"
+                    elif days_ago < 30:
+                        weeks = days_ago // 7
+                        posted = f"{weeks} week{'s' if weeks > 1 else ''} ago"
+                    else:
+                        posted = "1+ month ago"
+                except:
+                    posted = "Recently"
+            
+            transformed_job = {
+                "id": job_id,
+                "title": job.get("title", "Job Title Not Available"),
+                "company": job.get("company", {}).get("display_name", "Company Not Listed"),
+                "location": job.get("location", {}).get("display_name", "Location Not Specified"),
+                "type": "Full-time",  # Adzuna doesn't always provide this
+                "salary": salary,
+                "experience": "Not Specified",  # Map from category if available
+                "description": job.get("description", "No description available."),
+                "posted": posted,
+                "logo": job.get("company", {}).get("display_name", "Company")[:2].upper(),
+                "landing_page": job.get("redirect_url", "#"),
+                "categories": [job.get("category", {}).get("label", "Other")] if job.get("category") else ["Other"],
+                "tags": []  # Adzuna doesn't provide tags, could extract from description
+            }
+            jobs.append(transformed_job)
+        
+        return {
+            "page_count": data.get("count", 0) // 10 + 1,
+            "page": page,
+            "jobs": jobs,
+            "total_jobs": data.get("count", 0),
+            "source": "Adzuna API"
+        }
+        
+    except Exception as e:
+        print(f"Error fetching from Adzuna API: {e}")
+        # Fallback to mock data
+        return get_enhanced_mock_jobs(page, keyword, location)
+
 @app.get("/api/jobs")
 async def search_jobs(
     page: int = 0,
     keyword: str = "software engineer",
-    location: str = "United States",
+    location: str = "us",
     job_type: str = "full_time"
 ):
-    """Search jobs using enhanced mock data (external APIs currently unavailable)"""
+    """Search jobs using Adzuna API with fallback to mock data"""
     print(f"Job search request: keyword='{keyword}', location='{location}', job_type='{job_type}', page={page}")
     
-    # Use the enhanced mock data function
     try:
-        return get_enhanced_mock_jobs(page, keyword, location)
+        # Use Adzuna API for live data
+        return await fetch_adzuna_jobs(page, keyword, location)
     except Exception as e:
-        print(f"Error with static data: {e}")
+        print(f"Error in job search: {e}")
         import traceback
         traceback.print_exc()
-        # Return the most basic response possible
-        return {
-            "page_count": 1,
-            "page": 0,
-            "jobs": [],
-            "total_jobs": 0,
-            "source": "Emergency Fallback"
-        }
+        # Fallback to mock data
+        return get_enhanced_mock_jobs(page, keyword, location)
 
 @app.get("/api/jobs/{job_id}")
 async def get_job_details(job_id: str):
