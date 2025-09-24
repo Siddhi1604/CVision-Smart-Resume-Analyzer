@@ -57,7 +57,7 @@ export function TypingHero() {
     }, 500)
 
     return () => clearInterval(cursorInterval)
-  }, [currentCharIndex, isDeleting, currentPhraseIndex])
+  }, [currentCharIndex, isDeleting, currentPhraseIndex, phrases])
 
   return (
     <h1 className="text-5xl md:text-7xl font-bold mb-6">

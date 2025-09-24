@@ -15,7 +15,6 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react';
-
 const Dashboard = () => {
   const { user } = useAuth();
   const [userResumes, setUserResumes] = useState([]);

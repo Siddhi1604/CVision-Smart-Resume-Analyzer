@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Github, 
-  Linkedin, 
   Mail, 
   Users,
   Code,
@@ -149,4 +148,4 @@ const About = () => {
   );
 };
 
-export default About; 
+export default About;
