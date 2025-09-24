@@ -45,6 +45,12 @@ const JobSearch = () => {
       }
 
       const response = await axios.get(`/api/jobs?${params}`);
+      console.log('Job search response:', response.data);
+      
+      if (!response.data || !response.data.jobs) {
+        throw new Error('Invalid response format from server');
+      }
+      
       const { jobs: newJobs, page_count } = response.data;
       
       if (resetJobs) {
@@ -161,7 +167,7 @@ const JobSearch = () => {
 
         {/* Jobs List */}
         <div className="space-y-6">
-          {jobs.map((job, index) => (
+          {jobs && jobs.length > 0 && jobs.map((job, index) => (
             <motion.div
               key={job.id}
               initial={{ opacity: 0, y: 20 }}
