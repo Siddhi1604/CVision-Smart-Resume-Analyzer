@@ -13,19 +13,19 @@
       "use": "@vercel/python"
     }
   ],
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/backend/main.py" },
-    { "source": "/analyze-resume", "destination": "/backend/main.py" },
-    { "source": "/ai-analyze-resume", "destination": "/backend/main.py" },
-    { "source": "/build-resume", "destination": "/backend/main.py" },
-    { "source": "/job-categories", "destination": "/backend/main.py" },
-    { "source": "/job-roles", "destination": "/backend/main.py" },
-    { "source": "/job-skills", "destination": "/backend/main.py" },
-    { "source": "/user-analyses/(.*)", "destination": "/backend/main.py" },
-    { "source": "/download-resume/(.*)", "destination": "/backend/main.py" },
-    { "source": "/send-feedback", "destination": "/backend/main.py" },
-    { "source": "/store-analysis", "destination": "/backend/main.py" },
-    { "source": "/health", "destination": "/backend/main.py" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/backend/main.py" },
+    { "src": "/analyze-resume", "dest": "/backend/main.py" },
+    { "src": "/ai-analyze-resume", "dest": "/backend/main.py" },
+    { "src": "/build-resume", "dest": "/backend/main.py" },
+    { "src": "/job-categories", "dest": "/backend/main.py" },
+    { "src": "/job-roles", "dest": "/backend/main.py" },
+    { "src": "/job-skills", "dest": "/backend/main.py" },
+    { "src": "/user-analyses/(.*)", "dest": "/backend/main.py" },
+    { "src": "/download-resume/(.*)", "dest": "/backend/main.py" },
+    { "src": "/send-feedback", "dest": "/backend/main.py" },
+    { "src": "/store-analysis", "dest": "/backend/main.py" },
+    { "src": "/health", "dest": "/backend/main.py" },
+    { "src": "/(.*)", "dest": "/frontend/build/$1" }
   ]
 }
