@@ -999,6 +999,85 @@ Return ONLY valid JSON in this schema:
         print(f"OpenAI API error: {e}")
         raise HTTPException(status_code=500, detail="AI analysis service unavailable")
 
+@app.post("/api/analyze-resume")
+async def analyze_resume_api(
+    file: Optional[UploadFile] = File(None),
+    job_category: str = Form(...),
+    job_role: str = Form(...),
+    custom_job_description: Optional[str] = Form(None),
+    text: Optional[str] = Form(None),
+    user_id: str = Form("default_user"),
+):
+    # Mock analysis response for API compatibility
+    mock_analysis = {
+        "overall_score": 85,
+        "strengths": [
+            "Strong technical skills in React and JavaScript",
+            "Good project portfolio with modern web technologies",
+            "Clear communication and problem-solving abilities"
+        ],
+        "weaknesses": [
+            "Limited experience with backend technologies",
+            "Could benefit from more testing and DevOps experience"
+        ],
+        "recommendations": [
+            "Add more backend projects to your portfolio (Node.js, Python)",
+            "Include unit testing examples in your projects",
+            "Consider getting AWS or other cloud certifications"
+        ],
+        "skills_match": {
+            "matched_skills": ["JavaScript", "React", "CSS", "HTML"],
+            "missing_skills": ["Node.js", "SQL", "Docker", "Testing"],
+            "match_percentage": 75
+        },
+        "analysis_type": "standard"
+    }
+    return mock_analysis
+
+@app.post("/api/ai-analyze-resume")
+async def ai_analyze_resume_api(
+    file: Optional[UploadFile] = File(None),
+    job_category: str = Form(...),
+    job_role: str = Form(...),
+    custom_job_description: Optional[str] = Form(None),
+    text: Optional[str] = Form(None),
+    user_id: str = Form("default_user"),
+):
+    # Mock AI analysis response for API compatibility
+    mock_analysis = {
+        "overall_score": 92,
+        "strengths": [
+            "Excellent technical skills in React and JavaScript",
+            "Strong project portfolio with modern web technologies",
+            "Good understanding of software development best practices",
+            "Clear communication and problem-solving abilities"
+        ],
+        "weaknesses": [
+            "Limited experience with backend technologies",
+            "Could benefit from more testing and DevOps experience",
+            "Missing some industry-specific certifications"
+        ],
+        "recommendations": [
+            "Add more backend projects to your portfolio (Node.js, Python)",
+            "Include unit testing examples in your projects",
+            "Consider getting AWS or other cloud certifications",
+            "Highlight any leadership or team collaboration experience",
+            "Add more detailed project descriptions with technologies used"
+        ],
+        "skills_match": {
+            "matched_skills": ["JavaScript", "React", "CSS", "HTML", "Git"],
+            "missing_skills": ["Node.js", "SQL", "Docker", "Testing", "AWS"],
+            "match_percentage": 75
+        },
+        "analysis_type": "ai",
+        "ai_insights": [
+            "Your resume shows strong frontend development skills",
+            "Consider adding more full-stack projects to increase marketability",
+            "Your project descriptions could be more detailed with specific technologies",
+            "Strong foundation for junior to mid-level positions"
+        ]
+    }
+    return mock_analysis
 
 @app.get("/health")
 async def health():
@@ -1032,29 +1111,49 @@ async def get_user_analyses(user_id: str):
 
 @app.get("/api/user-analyses/{user_id}")
 async def get_user_analyses_api(user_id: str):
-    # Mock user analyses data for API compatibility
+    # Mock user analyses data for API compatibility with proper structure
     mock_analyses = [
         {
             "id": 1,
-            "title": "Software Engineer Resume Analysis",
-            "score": 85,
-            "date": "2024-01-15",
+            "resume_name": "Software Engineer Resume",
             "job_role": "Software Engineer",
             "job_category": "Technology",
-            "strengths": ["Strong technical skills", "Good project experience"],
-            "weaknesses": ["Limited backend experience"],
-            "recommendations": ["Add more backend projects", "Include testing examples"]
+            "analysis_type": "standard",
+            "created_at": "2024-01-15T10:30:00Z",
+            "analysis_result": {
+                "ats_score": 85,
+                "keyword_match": {
+                    "score": 80
+                },
+                "format_score": 90,
+                "section_score": 85,
+                "suggestions": [
+                    "Add more backend projects to your portfolio",
+                    "Include unit testing examples in your projects",
+                    "Consider getting AWS certifications"
+                ]
+            }
         },
         {
             "id": 2,
-            "title": "Frontend Developer Resume Analysis",
-            "score": 78,
-            "date": "2024-01-10",
+            "resume_name": "Frontend Developer Resume",
             "job_role": "Frontend Developer",
             "job_category": "Technology",
-            "strengths": ["Excellent React skills", "Good UI/UX sense"],
-            "weaknesses": ["Missing TypeScript experience"],
-            "recommendations": ["Learn TypeScript", "Add more complex projects"]
+            "analysis_type": "ai",
+            "created_at": "2024-01-10T14:20:00Z",
+            "analysis_result": {
+                "ats_score": 78,
+                "keyword_match": {
+                    "score": 75
+                },
+                "format_score": 85,
+                "section_score": 80,
+                "suggestions": [
+                    "Learn TypeScript for better type safety",
+                    "Add more complex projects to showcase skills",
+                    "Include responsive design examples"
+                ]
+            }
         }
     ]
     return {"analyses": mock_analyses}
