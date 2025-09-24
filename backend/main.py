@@ -37,7 +37,8 @@ if os.environ.get("VERCEL"):
     vercel_url = os.environ.get("VERCEL_URL", "")
     allowed_origins = [
         f"https://{vercel_url}",
-        "https://cvision-smart-resume-analyzer.vercel.app",  # Replace with your actual domain
+        "https://c-vision-smart-resume-analyzer-327s.vercel.app",  # Your actual Vercel domain
+        "https://cvision-smart-resume-analyzer.vercel.app",  # Backup domain
         "http://localhost:3000"  # For local development
     ]
     allow_credentials = True
