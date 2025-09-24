@@ -5,7 +5,7 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "frontend/build"
+        "distDir": "build"
       }
     },
     {
@@ -13,6 +13,7 @@
       "use": "@vercel/python"
     }
   ],
+  "outputDirectory": "frontend/build",
   "routes": [
     { "src": "/api/(.*)", "dest": "/backend/main.py" },
     { "src": "/analyze-resume", "dest": "/backend/main.py" },
