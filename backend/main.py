@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi import HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Set, Tuple, Any
@@ -1029,6 +1029,36 @@ async def store_analysis(analysis: ResumeAnalysis):
 async def get_user_analyses(user_id: str):
     user_analyses = [a for a in resume_analyses_storage if a["user_id"] == user_id]
     return {"analyses": user_analyses}
+
+@app.get("/api/user-analyses/{user_id}")
+async def get_user_analyses_api(user_id: str):
+    # Mock user analyses data for API compatibility
+    mock_analyses = [
+        {
+            "id": 1,
+            "title": "Software Engineer Resume Analysis",
+            "score": 85,
+            "date": "2024-01-15",
+            "job_role": "Software Engineer",
+            "job_category": "Technology",
+            "strengths": ["Strong technical skills", "Good project experience"],
+            "weaknesses": ["Limited backend experience"],
+            "recommendations": ["Add more backend projects", "Include testing examples"]
+        },
+        {
+            "id": 2,
+            "title": "Frontend Developer Resume Analysis",
+            "score": 78,
+            "date": "2024-01-10",
+            "job_role": "Frontend Developer",
+            "job_category": "Technology",
+            "strengths": ["Excellent React skills", "Good UI/UX sense"],
+            "weaknesses": ["Missing TypeScript experience"],
+            "recommendations": ["Learn TypeScript", "Add more complex projects"]
+        }
+    ]
+    return {"analyses": mock_analyses}
+
 @app.get("/download-resume/{analysis_id}")
 async def download_resume(analysis_id: str):
     try:
@@ -1054,6 +1084,46 @@ async def download_resume(analysis_id: str):
         print(f"Failed to download resume: {e}")
         raise HTTPException(status_code=500, detail="Failed to download resume")
 
+@app.get("/api/download-resume/{analysis_id}")
+async def download_resume_api(analysis_id: str):
+    # Mock resume content for API compatibility
+    mock_resume_content = f"""
+# John Doe
+## Software Engineer
+
+### Contact Information
+- Email: john.doe@email.com
+- Phone: (555) 123-4567
+- LinkedIn: linkedin.com/in/johndoe
+
+### Professional Summary
+Experienced software engineer with 5+ years of experience in full-stack development...
+
+### Skills
+- JavaScript, React, Node.js
+- Python, SQL
+- AWS, Docker
+
+### Experience
+**Senior Software Engineer** - Tech Corp (2020-Present)
+- Developed and maintained web applications
+- Led team of 3 developers
+- Implemented CI/CD pipelines
+
+### Education
+**Bachelor of Computer Science** - University of Technology (2018)
+
+Analysis ID: {analysis_id}
+""".strip()
+
+    # Return as plain text for now
+    return Response(
+        content=mock_resume_content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"resume_{analysis_id}.txt\""
+        }
+    )
 
 @app.post("/send-feedback")
 async def send_feedback(feedback: FeedbackRequest):
