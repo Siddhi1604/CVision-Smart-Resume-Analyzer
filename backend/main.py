@@ -463,6 +463,9 @@ ROLES_DATASET = _load_roles_dataset()
 async def list_job_categories():
     return {"categories": sorted(list(ROLES_DATASET.keys()))}
 
+@app.get("/api/job_categories")
+async def list_job_categories_api():
+    return {"categories": ["Technology"]}
 
 @app.get("/job-roles")
 async def list_job_roles(category: Optional[str] = None):
@@ -480,6 +483,55 @@ async def list_job_roles(category: Optional[str] = None):
         return nested
     roles = ROLES_DATASET.get(category, {})
     return {"category": category, "roles": sorted(list(roles.keys()))}
+
+@app.get("/api/job_roles")
+async def list_job_roles_api():
+    # Return Technology job roles only
+    technology_roles = {
+        "Technology": {
+            "Software Engineer": {
+                "description": "Develop software applications and systems",
+                "required_skills": ["Programming", "Problem Solving", "Software Development", "Algorithms", "Data Structures"]
+            },
+            "Frontend Developer": {
+                "description": "Develop user-facing web applications",
+                "required_skills": ["JavaScript", "React", "CSS", "HTML", "TypeScript"]
+            },
+            "Backend Developer": {
+                "description": "Build server-side applications and APIs",
+                "required_skills": ["Python", "Node.js", "SQL", "REST APIs", "Database Design"]
+            },
+            "Full Stack Developer": {
+                "description": "Handle both frontend and backend development",
+                "required_skills": ["JavaScript", "Python", "React", "Node.js", "SQL"]
+            },
+            "DevOps Engineer": {
+                "description": "Manage infrastructure and deployment pipelines",
+                "required_skills": ["Docker", "Kubernetes", "AWS", "CI/CD", "Linux"]
+            },
+            "Data Scientist": {
+                "description": "Analyze complex data to extract insights",
+                "required_skills": ["Python", "Machine Learning", "SQL", "Statistics", "Data Analysis"]
+            },
+            "Mobile Developer": {
+                "description": "Develop mobile applications",
+                "required_skills": ["React Native", "Swift", "Kotlin", "JavaScript", "Mobile Development"]
+            },
+            "UI/UX Designer": {
+                "description": "Design user interfaces and experiences",
+                "required_skills": ["Figma", "User Research", "Prototyping", "Design Systems", "Wireframing"]
+            },
+            "Product Manager": {
+                "description": "Define product strategy and roadmap",
+                "required_skills": ["Product Strategy", "Analytics", "User Research", "Agile", "Leadership"]
+            },
+            "QA Engineer": {
+                "description": "Test software applications for quality assurance",
+                "required_skills": ["Testing", "Automation", "Selenium", "Bug Tracking", "Quality Assurance"]
+            }
+        }
+    }
+    return technology_roles
 
 
 def extract_text_from_upload(file: UploadFile) -> str:
