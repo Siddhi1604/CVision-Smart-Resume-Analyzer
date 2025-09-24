@@ -230,14 +230,14 @@ const ResumeAnalyzer = () => {
                     <div>
                       <p className="text-sm font-medium mb-1">Required Skills:</p>
                       <div className="flex flex-wrap gap-2">
-                        {getRoleInfo(jobCategory, jobRole)?.required_skills.map((skill, index) => (
+                        {getRoleInfo(jobCategory, jobRole)?.required_skills?.map((skill, index) => (
                           <span
                             key={index}
                             className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded"
                           >
                             {skill}
                           </span>
-                        ))}
+                        )) || <span className="text-gray-400 text-xs">No skills data available</span>}
                       </div>
                     </div>
                   </div>

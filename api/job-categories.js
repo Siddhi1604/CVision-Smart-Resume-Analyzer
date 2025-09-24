@@ -14,19 +14,8 @@ export default function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Mock job categories data
-  const categories = [
-    "Software Engineering",
-    "Data Science",
-    "Product Management",
-    "Design",
-    "Marketing",
-    "Sales",
-    "Operations",
-    "Finance",
-    "Human Resources",
-    "Customer Support"
-  ];
+  // Return only Technology category as requested
+  const categories = ["Technology"];
 
   res.status(200).json({ categories });
 }

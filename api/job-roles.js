@@ -14,16 +14,20 @@ export default function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Mock job roles data with proper structure
+  // Technology job roles only
   const rolesData = {
-    "Software Engineering": {
+    "Technology": {
+      "Software Engineer": {
+        "description": "Develop software applications and systems",
+        "required_skills": ["Programming", "Problem Solving", "Software Development", "Algorithms", "Data Structures"]
+      },
       "Frontend Developer": {
-        "description": "Develop user-facing web applications using modern frameworks",
+        "description": "Develop user-facing web applications",
         "required_skills": ["JavaScript", "React", "CSS", "HTML", "TypeScript"]
       },
       "Backend Developer": {
         "description": "Build server-side applications and APIs",
-        "required_skills": ["Python", "Node.js", "SQL", "REST APIs", "Docker"]
+        "required_skills": ["Python", "Node.js", "SQL", "REST APIs", "Database Design"]
       },
       "Full Stack Developer": {
         "description": "Handle both frontend and backend development",
@@ -33,53 +37,25 @@ export default function handler(req, res) {
         "description": "Manage infrastructure and deployment pipelines",
         "required_skills": ["Docker", "Kubernetes", "AWS", "CI/CD", "Linux"]
       },
-      "Mobile Developer": {
-        "description": "Develop mobile applications for iOS and Android",
-        "required_skills": ["React Native", "Swift", "Kotlin", "JavaScript", "iOS/Android"]
-      }
-    },
-    "Data Science": {
       "Data Scientist": {
         "description": "Analyze complex data to extract insights",
-        "required_skills": ["Python", "Machine Learning", "SQL", "Statistics", "Pandas"]
+        "required_skills": ["Python", "Machine Learning", "SQL", "Statistics", "Data Analysis"]
       },
-      "Data Analyst": {
-        "description": "Analyze data to help business decisions",
-        "required_skills": ["SQL", "Excel", "Python", "Tableau", "Statistics"]
+      "Mobile Developer": {
+        "description": "Develop mobile applications",
+        "required_skills": ["React Native", "Swift", "Kotlin", "JavaScript", "Mobile Development"]
       },
-      "Machine Learning Engineer": {
-        "description": "Build and deploy ML models",
-        "required_skills": ["Python", "TensorFlow", "PyTorch", "MLOps", "AWS"]
-      }
-    },
-    "Product Management": {
+      "UI/UX Designer": {
+        "description": "Design user interfaces and experiences",
+        "required_skills": ["Figma", "User Research", "Prototyping", "Design Systems", "Wireframing"]
+      },
       "Product Manager": {
         "description": "Define product strategy and roadmap",
         "required_skills": ["Product Strategy", "Analytics", "User Research", "Agile", "Leadership"]
       },
-      "Product Owner": {
-        "description": "Manage product backlog and requirements",
-        "required_skills": ["Agile", "User Stories", "Stakeholder Management", "Analytics"]
-      }
-    },
-    "Design": {
-      "UI/UX Designer": {
-        "description": "Design user interfaces and experiences",
-        "required_skills": ["Figma", "Adobe Creative Suite", "User Research", "Prototyping", "Design Systems"]
-      },
-      "Graphic Designer": {
-        "description": "Create visual designs and branding",
-        "required_skills": ["Adobe Creative Suite", "Illustration", "Branding", "Typography", "Color Theory"]
-      }
-    },
-    "Marketing": {
-      "Digital Marketing Manager": {
-        "description": "Manage online marketing campaigns",
-        "required_skills": ["Google Ads", "Facebook Ads", "Analytics", "SEO", "Content Marketing"]
-      },
-      "Content Marketing Specialist": {
-        "description": "Create and manage content strategy",
-        "required_skills": ["Content Writing", "SEO", "Social Media", "Analytics", "CMS"]
+      "QA Engineer": {
+        "description": "Test software applications for quality assurance",
+        "required_skills": ["Testing", "Automation", "Selenium", "Bug Tracking", "Quality Assurance"]
       }
     }
   };
