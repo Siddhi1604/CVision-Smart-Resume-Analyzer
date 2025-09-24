@@ -7,14 +7,14 @@
       "config": {
         "distDir": "frontend/build"
       }
+    },
+    {
+      "src": "jobs.js",
+      "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "api/jobs.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
+    { "source": "/api/jobs", "destination": "/jobs.js" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
