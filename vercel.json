@@ -7,14 +7,9 @@
       "config": {
         "distDir": "frontend/build"
       }
-    },
-    {
-      "src": "jobs.js",
-      "use": "@vercel/node"
     }
   ],
   "rewrites": [
-    { "source": "/api/jobs", "destination": "/jobs.js" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
