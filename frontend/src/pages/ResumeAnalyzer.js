@@ -70,7 +70,7 @@ const ResumeAnalyzer = () => {
     }
 
     try {
-      const endpoint = analysisType === 'ai' ? '/api/ai-analyze-resume' : '/api/analyze-resume';
+      const endpoint = analysisType === 'ai' ? '/ai-analyze-resume' : '/analyze-resume';
       const response = await axios.post(endpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',

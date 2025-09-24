@@ -33,8 +33,8 @@ import {
       // Fetch real analyses from backend (current user and fallback legacy default_user)
       const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
       const [respPrimary, respFallback] = await Promise.all([
-        axios.get(`/api/user-analyses/${currentUserId}`),
-        axios.get(`/api/user-analyses/default_user`).catch(() => ({ data: { analyses: [] } }))
+        axios.get(`/user-analyses/${currentUserId}`),
+        axios.get(`/user-analyses/default_user`).catch(() => ({ data: { analyses: [] } }))
       ]);
       const analyses = [...(respPrimary.data.analyses || []), ...(respFallback?.data?.analyses || [])];
       
@@ -230,7 +230,7 @@ import {
                             <div className="flex items-center gap-2">
                               <button onClick={async () => {
                                 try {
-                                  const res = await axios.get(`/api/download-resume/${resume.id}`, { responseType: 'blob' });
+                                  const res = await axios.get(`/download-resume/${resume.id}`, { responseType: 'blob' });
                                   const blob = new Blob([res.data]);
                                   const url = window.URL.createObjectURL(blob);
                                   const link = document.createElement('a');

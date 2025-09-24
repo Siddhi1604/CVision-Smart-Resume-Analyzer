@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi import HTTPException
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Set, Tuple, Any
@@ -463,9 +463,6 @@ ROLES_DATASET = _load_roles_dataset()
 async def list_job_categories():
     return {"categories": sorted(list(ROLES_DATASET.keys()))}
 
-@app.get("/api/job_categories")
-async def list_job_categories_api():
-    return {"categories": ["Technology"]}
 
 @app.get("/job-roles")
 async def list_job_roles(category: Optional[str] = None):
@@ -483,55 +480,6 @@ async def list_job_roles(category: Optional[str] = None):
         return nested
     roles = ROLES_DATASET.get(category, {})
     return {"category": category, "roles": sorted(list(roles.keys()))}
-
-@app.get("/api/job_roles")
-async def list_job_roles_api():
-    # Return Technology job roles only
-    technology_roles = {
-        "Technology": {
-            "Software Engineer": {
-                "description": "Develop software applications and systems",
-                "required_skills": ["Programming", "Problem Solving", "Software Development", "Algorithms", "Data Structures"]
-            },
-            "Frontend Developer": {
-                "description": "Develop user-facing web applications",
-                "required_skills": ["JavaScript", "React", "CSS", "HTML", "TypeScript"]
-            },
-            "Backend Developer": {
-                "description": "Build server-side applications and APIs",
-                "required_skills": ["Python", "Node.js", "SQL", "REST APIs", "Database Design"]
-            },
-            "Full Stack Developer": {
-                "description": "Handle both frontend and backend development",
-                "required_skills": ["JavaScript", "Python", "React", "Node.js", "SQL"]
-            },
-            "DevOps Engineer": {
-                "description": "Manage infrastructure and deployment pipelines",
-                "required_skills": ["Docker", "Kubernetes", "AWS", "CI/CD", "Linux"]
-            },
-            "Data Scientist": {
-                "description": "Analyze complex data to extract insights",
-                "required_skills": ["Python", "Machine Learning", "SQL", "Statistics", "Data Analysis"]
-            },
-            "Mobile Developer": {
-                "description": "Develop mobile applications",
-                "required_skills": ["React Native", "Swift", "Kotlin", "JavaScript", "Mobile Development"]
-            },
-            "UI/UX Designer": {
-                "description": "Design user interfaces and experiences",
-                "required_skills": ["Figma", "User Research", "Prototyping", "Design Systems", "Wireframing"]
-            },
-            "Product Manager": {
-                "description": "Define product strategy and roadmap",
-                "required_skills": ["Product Strategy", "Analytics", "User Research", "Agile", "Leadership"]
-            },
-            "QA Engineer": {
-                "description": "Test software applications for quality assurance",
-                "required_skills": ["Testing", "Automation", "Selenium", "Bug Tracking", "Quality Assurance"]
-            }
-        }
-    }
-    return technology_roles
 
 
 def extract_text_from_upload(file: UploadFile) -> str:
@@ -999,85 +947,6 @@ Return ONLY valid JSON in this schema:
         print(f"OpenAI API error: {e}")
         raise HTTPException(status_code=500, detail="AI analysis service unavailable")
 
-@app.post("/api/analyze-resume")
-async def analyze_resume_api(
-    file: Optional[UploadFile] = File(None),
-    job_category: str = Form(...),
-    job_role: str = Form(...),
-    custom_job_description: Optional[str] = Form(None),
-    text: Optional[str] = Form(None),
-    user_id: str = Form("default_user"),
-):
-    # Mock analysis response for API compatibility
-    mock_analysis = {
-        "overall_score": 85,
-        "strengths": [
-            "Strong technical skills in React and JavaScript",
-            "Good project portfolio with modern web technologies",
-            "Clear communication and problem-solving abilities"
-        ],
-        "weaknesses": [
-            "Limited experience with backend technologies",
-            "Could benefit from more testing and DevOps experience"
-        ],
-        "recommendations": [
-            "Add more backend projects to your portfolio (Node.js, Python)",
-            "Include unit testing examples in your projects",
-            "Consider getting AWS or other cloud certifications"
-        ],
-        "skills_match": {
-            "matched_skills": ["JavaScript", "React", "CSS", "HTML"],
-            "missing_skills": ["Node.js", "SQL", "Docker", "Testing"],
-            "match_percentage": 75
-        },
-        "analysis_type": "standard"
-    }
-    return mock_analysis
-
-@app.post("/api/ai-analyze-resume")
-async def ai_analyze_resume_api(
-    file: Optional[UploadFile] = File(None),
-    job_category: str = Form(...),
-    job_role: str = Form(...),
-    custom_job_description: Optional[str] = Form(None),
-    text: Optional[str] = Form(None),
-    user_id: str = Form("default_user"),
-):
-    # Mock AI analysis response for API compatibility
-    mock_analysis = {
-        "overall_score": 92,
-        "strengths": [
-            "Excellent technical skills in React and JavaScript",
-            "Strong project portfolio with modern web technologies",
-            "Good understanding of software development best practices",
-            "Clear communication and problem-solving abilities"
-        ],
-        "weaknesses": [
-            "Limited experience with backend technologies",
-            "Could benefit from more testing and DevOps experience",
-            "Missing some industry-specific certifications"
-        ],
-        "recommendations": [
-            "Add more backend projects to your portfolio (Node.js, Python)",
-            "Include unit testing examples in your projects",
-            "Consider getting AWS or other cloud certifications",
-            "Highlight any leadership or team collaboration experience",
-            "Add more detailed project descriptions with technologies used"
-        ],
-        "skills_match": {
-            "matched_skills": ["JavaScript", "React", "CSS", "HTML", "Git"],
-            "missing_skills": ["Node.js", "SQL", "Docker", "Testing", "AWS"],
-            "match_percentage": 75
-        },
-        "analysis_type": "ai",
-        "ai_insights": [
-            "Your resume shows strong frontend development skills",
-            "Consider adding more full-stack projects to increase marketability",
-            "Your project descriptions could be more detailed with specific technologies",
-            "Strong foundation for junior to mid-level positions"
-        ]
-    }
-    return mock_analysis
 
 @app.get("/health")
 async def health():
@@ -1108,56 +977,6 @@ async def store_analysis(analysis: ResumeAnalysis):
 async def get_user_analyses(user_id: str):
     user_analyses = [a for a in resume_analyses_storage if a["user_id"] == user_id]
     return {"analyses": user_analyses}
-
-@app.get("/api/user-analyses/{user_id}")
-async def get_user_analyses_api(user_id: str):
-    # Mock user analyses data for API compatibility with proper structure
-    mock_analyses = [
-        {
-            "id": 1,
-            "resume_name": "Software Engineer Resume",
-            "job_role": "Software Engineer",
-            "job_category": "Technology",
-            "analysis_type": "standard",
-            "created_at": "2024-01-15T10:30:00Z",
-            "analysis_result": {
-                "ats_score": 85,
-                "keyword_match": {
-                    "score": 80
-                },
-                "format_score": 90,
-                "section_score": 85,
-                "suggestions": [
-                    "Add more backend projects to your portfolio",
-                    "Include unit testing examples in your projects",
-                    "Consider getting AWS certifications"
-                ]
-            }
-        },
-        {
-            "id": 2,
-            "resume_name": "Frontend Developer Resume",
-            "job_role": "Frontend Developer",
-            "job_category": "Technology",
-            "analysis_type": "ai",
-            "created_at": "2024-01-10T14:20:00Z",
-            "analysis_result": {
-                "ats_score": 78,
-                "keyword_match": {
-                    "score": 75
-                },
-                "format_score": 85,
-                "section_score": 80,
-                "suggestions": [
-                    "Learn TypeScript for better type safety",
-                    "Add more complex projects to showcase skills",
-                    "Include responsive design examples"
-                ]
-            }
-        }
-    ]
-    return {"analyses": mock_analyses}
-
 @app.get("/download-resume/{analysis_id}")
 async def download_resume(analysis_id: str):
     try:
@@ -1183,46 +1002,6 @@ async def download_resume(analysis_id: str):
         print(f"Failed to download resume: {e}")
         raise HTTPException(status_code=500, detail="Failed to download resume")
 
-@app.get("/api/download-resume/{analysis_id}")
-async def download_resume_api(analysis_id: str):
-    # Mock resume content for API compatibility
-    mock_resume_content = f"""
-# John Doe
-## Software Engineer
-
-### Contact Information
-- Email: john.doe@email.com
-- Phone: (555) 123-4567
-- LinkedIn: linkedin.com/in/johndoe
-
-### Professional Summary
-Experienced software engineer with 5+ years of experience in full-stack development...
-
-### Skills
-- JavaScript, React, Node.js
-- Python, SQL
-- AWS, Docker
-
-### Experience
-**Senior Software Engineer** - Tech Corp (2020-Present)
-- Developed and maintained web applications
-- Led team of 3 developers
-- Implemented CI/CD pipelines
-
-### Education
-**Bachelor of Computer Science** - University of Technology (2018)
-
-Analysis ID: {analysis_id}
-""".strip()
-
-    # Return as plain text for now
-    return Response(
-        content=mock_resume_content,
-        media_type="text/plain",
-        headers={
-            "Content-Disposition": f"attachment; filename=\"resume_{analysis_id}.txt\""
-        }
-    )
 
 @app.post("/send-feedback")
 async def send_feedback(feedback: FeedbackRequest):

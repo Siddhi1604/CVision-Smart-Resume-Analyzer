@@ -83,7 +83,7 @@ const Feedback = () => {
         rating: feedback.rating
       };
 
-      const response = await axios.post('/api/send-feedback', feedbackData);
+      const response = await axios.post('/send-feedback', feedbackData);
       
       if (response.data.status === 'success') {
         toast.success('Thank you for your feedback! We\'ll get back to you soon.');
