@@ -67,10 +67,5 @@
       "src": "/(.*)",
       "dest": "/frontend/build/$1"
     }
-  ],
-  "functions": {
-    "backend/main.py": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
