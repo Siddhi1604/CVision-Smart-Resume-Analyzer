@@ -1,0 +1,34 @@
+# Vercel Environment Variables Template
+# Copy these to your Vercel project dashboard under Settings → Environment Variables
+
+# ===== FRONTEND VARIABLES =====
+# Firebase Configuration (Required)
+REACT_APP_FIREBASE_API_KEY=your_firebase_api_key_here
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id_here
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id_here
+REACT_APP_FIREBASE_APP_ID=your_app_id_here
+REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id_here
+
+# ===== BACKEND VARIABLES =====
+# AI Analysis (Required for AI features)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# Email Configuration (Optional - for feedback emails)
+EMAIL_PASSWORD=your_gmail_app_password_here
+
+# Job Search APIs (Optional - for enhanced job search)
+MUSE_API_KEY=your_muse_api_key_here
+ADZUNA_APP_ID=your_adzuna_app_id_here
+ADZUNA_API_KEY=your_adzuna_api_key_here
+
+# CORS Configuration (Optional - will auto-configure for Vercel)
+BACKEND_ALLOWED_ORIGINS=https://your-app-name.vercel.app
+
+# ===== DEPLOYMENT NOTES =====
+# 1. Go to your Vercel project dashboard
+# 2. Navigate to Settings → Environment Variables
+# 3. Add each variable above with your actual values
+# 4. Make sure to set them for Production, Preview, and Development environments
+# 5. After adding variables, redeploy your project

@@ -31,14 +31,25 @@ load_dotenv(dotenv_path=_DOTENV_PATH, override=True)
 
 app = FastAPI(title="CVision Standard Analyzer", version="0.1.0")
 
-# CORS - allow frontend dev server by default
-allowed_origins_env = os.environ.get("BACKEND_ALLOWED_ORIGINS", "*")
-allowed_origins = (
-    [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
-    if allowed_origins_env != "*"
-    else ["*"]
-)
-allow_credentials = allowed_origins != ["*"]
+# CORS - configure for Vercel deployment
+if os.environ.get("VERCEL"):
+    # For Vercel deployment, allow your Vercel domain
+    vercel_url = os.environ.get("VERCEL_URL", "")
+    allowed_origins = [
+        f"https://{vercel_url}",
+        "https://cvision-smart-resume-analyzer.vercel.app",  # Replace with your actual domain
+        "http://localhost:3000"  # For local development
+    ]
+    allow_credentials = True
+else:
+    # For local development
+    allowed_origins_env = os.environ.get("BACKEND_ALLOWED_ORIGINS", "*")
+    allowed_origins = (
+        [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+        if allowed_origins_env != "*"
+        else ["*"]
+    )
+    allow_credentials = allowed_origins != ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,12 +77,20 @@ else:
 # Simple in-memory storage for resume analyses (in production, use a database)
 resume_analyses_storage = []
 
-# Simple disk persistence
-_STORAGE_DIR = os.path.join(_BACKEND_DIR, "storage")
-_UPLOADS_DIR = os.path.join(_BACKEND_DIR, "uploads")
+# Simple disk persistence - use temp directories for Vercel
+import tempfile
+if os.environ.get("VERCEL"):
+    # Use temp directories for Vercel serverless
+    _STORAGE_DIR = tempfile.gettempdir()
+    _UPLOADS_DIR = tempfile.gettempdir()
+else:
+    # Use local directories for development
+    _STORAGE_DIR = os.path.join(_BACKEND_DIR, "storage")
+    _UPLOADS_DIR = os.path.join(_BACKEND_DIR, "uploads")
+    os.makedirs(_STORAGE_DIR, exist_ok=True)
+    os.makedirs(_UPLOADS_DIR, exist_ok=True)
+
 _ANALYSES_JSON = os.path.join(_STORAGE_DIR, "analyses.json")
-os.makedirs(_STORAGE_DIR, exist_ok=True)
-os.makedirs(_UPLOADS_DIR, exist_ok=True)
 
 def _load_analyses_from_disk():
     """Load resume analyses from disk storage"""
