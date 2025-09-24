@@ -14,8 +14,7 @@ import {
   Calendar,
   CheckCircle,
   Clock
-} from 'lucide-react';
-const Dashboard = () => {
+} from 'lucide-react';const Dashboard = () => {
   const { user } = useAuth();
   const [userResumes, setUserResumes] = useState([]);
   const [resumeAnalyses, setResumeAnalyses] = useState([]);
@@ -341,3 +340,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard; 
+
