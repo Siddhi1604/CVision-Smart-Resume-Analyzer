@@ -6,9 +6,7 @@ import {
   Briefcase, 
   Clock, 
   DollarSign,
-  ExternalLink,
-  Filter,
-  ChevronDown
+  ExternalLink
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -20,7 +18,6 @@ const JobSearch = () => {
   const [jobType, setJobType] = useState('All Types');
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [hasMoreJobs, setHasMoreJobs] = useState(false);
 
   // Fetch jobs from API
@@ -56,7 +53,6 @@ const JobSearch = () => {
         setJobs(prevJobs => [...prevJobs, ...newJobs]);
       }
       
-      setTotalPages(page_count);
       setCurrentPage(page);
       setHasMoreJobs(page < page_count - 1);
       

@@ -10,7 +10,6 @@ import {
   Award,
   Activity,
   Download,
-  Eye,
   Calendar,
   CheckCircle,
   Clock

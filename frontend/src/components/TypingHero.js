@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion } from "framer-motion"
 
 export function TypingHero() {
@@ -10,11 +10,11 @@ export function TypingHero() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showCursor, setShowCursor] = useState(true)
 
-  const phrases = [
+  const phrases = useMemo(() => [
     { text: "AI-powered insights", color: "text-green-400", cursorColor: "bg-green-400" },
     { text: "career advancement", color: "text-blue-400", cursorColor: "bg-blue-400" },
     { text: "dream job success", color: "text-emerald-400", cursorColor: "bg-emerald-400" },
-  ]
+  ], [])
 
   const baseText1 = "Your intelligent"
   const baseText2 = "career partner for"
