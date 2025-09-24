@@ -22,8 +22,8 @@ export const JobRolesProvider = ({ children }) => {
       try {
         // Fetch categories explicitly to populate the dropdown
         const [catsRes, rolesRes] = await Promise.all([
-          axios.get('/job-categories'),
-          axios.get('/job-roles'), // nested category -> role -> { description, required_skills }
+          axios.get('/api/job-categories'),
+          axios.get('/api/job-roles'), // nested category -> role -> { description, required_skills }
         ]);
 
         if (Array.isArray(catsRes.data?.categories)) {
