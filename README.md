@@ -6,14 +6,6 @@
 
 **An AI-powered resume analysis and career advancement platform**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-blue?style=for-the-badge&logo=vercel)](https://c-vision-smart-resume-analyzer-327s.vercel.app)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/Siddhi1604/CVision-Smart-Resume-Analyzer.git)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-
-</div>
-
----
-
 ## 📋 Table of Contents
 
 - [🎯 Overview](#-overview)
