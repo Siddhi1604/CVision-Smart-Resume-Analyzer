@@ -126,7 +126,7 @@ const About = () => {
           </p>
           <div className="flex justify-center gap-6">
             <a
-              href="https://github.com/Siddhi1604/Smart-AI-Resume-Analyzer"
+              href="https://github.com/Siddhi1604/CVision-Smart-Resume-Analyzer.git"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary flex items-center gap-2"
