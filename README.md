@@ -1,6 +1,3 @@
-I'll fix the alignment by removing the center alignment div and properly formatting the content. Here's the corrected version:
-
-```markdown:README.md
 # 🚀 CVision Smart Resume Analyzer
 
 ![CVision Logo](https://img.shields.io/badge/CVision-Smart%20Resume%20Analyzer-green?style=for-the-badge&logo=react)
