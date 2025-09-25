@@ -12,11 +12,11 @@
 - [✨ Features](#-features)
 - [🏗️ Architecture](#️-architecture)
 - [🛠️ Tech Stack](#️-tech-stack)
-- [�� Project Structure](#-project-structure)
+- [Project Structure](#-project-structure)
 - [🚀 Quick Start](#-quick-start)
 - [⚙️ Configuration](#️-configuration)
 - [🔧 Development](#-development)
-- [�� API Documentation](#-api-documentation)
+- [API Documentation](#-api-documentation)
 - [🚀 Deployment](#-deployment)
 - [🤝 Contributing](#-contributing)
 - [📞 Contact](#-contact)
@@ -27,18 +27,9 @@
 
 **CVision Smart Resume Analyzer** is a comprehensive career advancement platform that combines cutting-edge AI technology with intuitive design to help job seekers optimize their resumes and advance their careers. The platform offers both standard algorithmic analysis and advanced AI-powered insights to provide personalized feedback and recommendations.
 
-### �� Mission Statement
+### Mission Statement
 
 CVision represents our vision of democratizing career advancement through technology. By combining cutting-edge AI with intuitive design, this platform empowers job seekers at every career stage to showcase their true potential and stand out in today's competitive job market.
-
-### 🌟 Key Statistics
-
-- **10,000+** Resumes Analyzed
-- **5,000+** Happy Users
-- **95%** Success Rate
-- **50+** Countries Served
-
----
 
 ## ✨ Features
 
