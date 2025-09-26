@@ -73,12 +73,19 @@ import {
       const averageScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
       const bestScore = scores.length > 0 ? Math.max(...scores) : 0;
 
+      // Sort analyses by date (newest first) for recent activity
+      const sortedAnalyses = [...transformedAnalyses].sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateB - dateA; // Newest first
+      });
+
       setStats({ 
         totalResumes, 
         totalAnalyses, 
         averageScore, 
         bestScore, 
-        recentActivity: transformedAnalyses.slice(0, 3) 
+        recentActivity: sortedAnalyses.slice(0, 3) 
       });
 
     } catch (error) {
@@ -277,6 +284,136 @@ import {
                       </div>
                     );
                   })}
+                </div>
+                
+                {/* Job Role Distribution within Recent Activity */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <h4 className="text-lg font-medium mb-4 flex items-center gap-2">
+                    <Award size={16} />
+                    Job Role Distribution
+                  </h4>
+                  <div className="h-48">
+                    <ResumeChart 
+                      type="doughnut" 
+                      data={{
+                        labels: [...new Set(userResumes.map(r => r.jobRole))],
+                        datasets: [{
+                          data: [...new Set(userResumes.map(r => r.jobRole))].map(role => 
+                            userResumes.filter(r => r.jobRole === role).length
+                          ),
+                          backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',   // Blue
+                            'rgba(34, 197, 94, 0.8)',    // Green
+                            'rgba(234, 179, 8, 0.8)',    // Yellow
+                            'rgba(249, 115, 22, 0.8)',   // Orange
+                            'rgba(168, 85, 247, 0.8)',   // Purple
+                            'rgba(236, 72, 153, 0.8)'    // Pink
+                          ],
+                          borderColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(34, 197, 94)',
+                            'rgb(234, 179, 8)',
+                            'rgb(249, 115, 22)',
+                            'rgb(168, 85, 247)',
+                            'rgb(236, 72, 153)'
+                          ],
+                          borderWidth: 2
+                        }]
+                      }}
+                      options={{
+                        plugins: {
+                          title: {
+                            display: false
+                          },
+                          legend: {
+                            position: 'bottom',
+                            labels: {
+                              color: '#ffffff',
+                              padding: 15,
+                              usePointStyle: true,
+                              font: { size: 12 }
+                            }
+                          }
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Performance Insights */}
+                <div className="mt-12 pt-12 border-t border-white/10">
+                  <h4 className="text-lg font-medium mb-4 flex items-center gap-2">
+                    <TrendingUp size={16} />
+                    Performance Insights
+                  </h4>
+                  
+                  {/* Keyword Impact Analysis */}
+                  <div className="mb-6 p-4 bg-black/20 rounded-lg">
+                    <h5 className="text-md font-medium mb-3 text-blue-400 flex items-center gap-2">
+                      <BarChart3 size={14} />
+                      Keyword Impact Analysis
+                    </h5>
+                    {resumeAnalyses.length > 0 && (() => {
+                      const latestAnalysis = resumeAnalyses[0];
+                      const keywordImpact = latestAnalysis.keywordMatch > 60 ? 'positive' : 'negative';
+                      const impactText = keywordImpact === 'positive' 
+                        ? `Your ${latestAnalysis.keywordMatch}% keyword match is contributing well to your ${latestAnalysis.atsScore}% ATS score.`
+                        : `Your ${latestAnalysis.keywordMatch}% keyword match is limiting your ATS score potential. Consider adding more role-specific keywords.`;
+                      return (
+                        <p className="text-sm text-gray-300">{impactText}</p>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Section Performance Breakdown */}
+                  <div className="mb-6 p-4 bg-black/20 rounded-lg">
+                    <h5 className="text-md font-medium mb-3 text-green-400 flex items-center gap-2">
+                      <Award size={14} />
+                      Section Performance
+                    </h5>
+                    {resumeAnalyses.length > 0 && (() => {
+                      const latestAnalysis = resumeAnalyses[0];
+                      const sections = [
+                        { name: 'ATS Score', score: latestAnalysis.atsScore },
+                        { name: 'Keyword Match', score: latestAnalysis.keywordMatch },
+                        { name: 'Format Score', score: latestAnalysis.formatScore },
+                        { name: 'Section Score', score: latestAnalysis.sectionScore }
+                      ];
+                      const bestSection = sections.reduce((best, current) => current.score > best.score ? current : best);
+                      const worstSection = sections.reduce((worst, current) => current.score < worst.score ? current : worst);
+                      
+                      return (
+                        <div className="text-sm text-gray-300">
+                          <p className="mb-2">Strongest: <span className="text-green-400">{bestSection.name} ({bestSection.score}%)</span></p>
+                          <p>Needs improvement: <span className="text-yellow-400">{worstSection.name} ({worstSection.score}%)</span></p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Resume Length Analysis */}
+                  <div className="mb-4 p-4 bg-black/20 rounded-lg">
+                    <h5 className="text-md font-medium mb-3 text-yellow-400 flex items-center gap-2">
+                      <FileText size={14} />
+                      Length Optimization
+                    </h5>
+                    {resumeAnalyses.length > 0 && (() => {
+                      const latestAnalysis = resumeAnalyses[0];
+                      const estimatedWords = 300 + (latestAnalysis.score * 5);
+                      const lengthStatus = estimatedWords > 500 ? 'long' : estimatedWords < 300 ? 'short' : 'optimal';
+                      const lengthAdvice = lengthStatus === 'long' 
+                        ? `Your resume appears to be around ${estimatedWords} words, which might be too lengthy. Consider condensing to 400-500 words for better ATS performance.`
+                        : lengthStatus === 'short'
+                        ? `Your resume appears to be around ${estimatedWords} words, which might be too brief. Consider adding more details to reach 400-500 words.`
+                        : `Your resume length appears optimal at around ${estimatedWords} words, contributing to your ${latestAnalysis.score}% score.`;
+                      
+                      return (
+                        <p className="text-sm text-gray-300">{lengthAdvice}</p>
+                      );
+                    })()}
+                  </div>
                 </div>
               </motion.div>
             </div>

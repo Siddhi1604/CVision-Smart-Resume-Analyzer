@@ -976,6 +976,8 @@ async def store_analysis(analysis: ResumeAnalysis):
 @app.get("/user-analyses/{user_id}")
 async def get_user_analyses(user_id: str):
     user_analyses = [a for a in resume_analyses_storage if a["user_id"] == user_id]
+    # Sort by created_at date (newest first)
+    user_analyses.sort(key=lambda x: x.get("created_at", ""), reverse=True)
     return {"analyses": user_analyses}
 @app.get("/download-resume/{analysis_id}")
 async def download_resume(analysis_id: str):
