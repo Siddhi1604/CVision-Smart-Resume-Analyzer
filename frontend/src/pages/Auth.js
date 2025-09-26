@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, ArrowLeft, Chrome } from 'lucide-react';
 
 const Auth = () => {
-  const { login, register, loginWithGoogle } = useAuth();
+  const { login, register, loginWithGoogle, isGoogleSignInLoading } = useAuth();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [loading, setLoading] = useState(false);
@@ -35,14 +35,16 @@ const Auth = () => {
   };
 
   const handleGoogle = async () => {
-    setLoading(true);
     try {
       await loginWithGoogle();
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      alert(err.message || 'Google sign-in failed');
-    } finally {
-      setLoading(false);
+      console.error('Google sign-in error:', err);
+      // Error is already handled in AuthContext with user-friendly messages
+      // Only show alert for non-cancellation errors
+      if (err.code !== 'auth/cancelled-popup-request' && err.code !== 'auth/popup-closed-by-user') {
+        alert(err.message || 'Google sign-in failed');
+      }
     }
   };
 
@@ -144,10 +146,11 @@ const Auth = () => {
 
           <button
             onClick={handleGoogle}
-            disabled={loading}
-            className="w-full btn btn-secondary py-3 flex items-center justify-center gap-2"
+            disabled={loading || isGoogleSignInLoading}
+            className="w-full btn btn-secondary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Chrome size={18} /> Continue with Google
+            <Chrome size={18} /> 
+            {isGoogleSignInLoading ? 'Signing in...' : 'Continue with Google'}
           </button>
 
           <p className="text-center text-sm text-gray-400 mt-6">

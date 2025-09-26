@@ -4,7 +4,16 @@ import { useAuth } from '../context/AuthContext';
 import { User, Mail, Calendar, LogIn } from 'lucide-react';
 
 const Profile = () => {
-  const { user, loginWithGoogle, logout } = useAuth();
+  const { user, loginWithGoogle, logout, isGoogleSignInLoading } = useAuth();
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      // Error is already handled in AuthContext with user-friendly messages
+    }
+  };
 
   if (!user) {
     return (
@@ -21,11 +30,12 @@ const Profile = () => {
           <h1 className="text-3xl font-bold mb-2">You are not logged in</h1>
           <p className="text-gray-300 mb-6">Sign in to view your profile and manage your resumes.</p>
           <button
-            onClick={loginWithGoogle}
-            className="btn btn-primary inline-flex items-center gap-2"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleSignInLoading}
+            className="btn btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogIn size={18} />
-            Sign in with Google
+            {isGoogleSignInLoading ? 'Signing in...' : 'Sign in with Google'}
           </button>
         </motion.div>
       </div>

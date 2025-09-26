@@ -1020,7 +1020,7 @@ async def send_feedback(feedback: FeedbackRequest):
 
 # ==== Job Data Functions ====
 
-def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "") -> dict:
+def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "", job_type: str = "full_time") -> dict:
     """Enhanced mock data as fallback"""
     all_jobs = [
         {
@@ -1037,6 +1037,156 @@ def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "")
             "landing_page": "https://github.com/careers",
             "categories": ["Engineering"],
             "tags": ["Python", "Go", "Kubernetes", "Cloud"]
+        },
+        {
+            "id": 101,
+            "title": "Software Engineering Intern",
+            "company": "Google",
+            "location": "Mountain View, CA",
+            "type": "Internship",
+            "salary": "$6,000 - $8,000/month",
+            "experience": "Entry Level",
+            "description": "Join Google's engineering team as an intern. Work on real projects, learn from experienced engineers, and contribute to products used by billions.",
+            "posted": "3 days ago",
+            "logo": "GO",
+            "landing_page": "https://careers.google.com",
+            "categories": ["Engineering"],
+            "tags": ["Python", "Java", "Machine Learning", "Internship"]
+        },
+        {
+            "id": 102,
+            "title": "Data Science Intern",
+            "company": "Meta",
+            "location": "Menlo Park, CA",
+            "type": "Internship",
+            "salary": "$5,500 - $7,500/month",
+            "experience": "Entry Level",
+            "description": "Work on data science projects at Meta. Analyze user behavior, build ML models, and contribute to data-driven decision making.",
+            "posted": "1 week ago",
+            "logo": "ME",
+            "landing_page": "https://careers.meta.com",
+            "categories": ["Data Science"],
+            "tags": ["Python", "R", "SQL", "Machine Learning", "Internship"]
+        },
+        {
+            "id": 103,
+            "title": "Frontend Developer (Part-time)",
+            "company": "Shopify",
+            "location": "Remote",
+            "type": "Part-time",
+            "salary": "$40 - $60/hour",
+            "experience": "Mid Level",
+            "description": "Part-time frontend development role. Work on Shopify's merchant tools and help small businesses succeed online.",
+            "posted": "5 days ago",
+            "logo": "SH",
+            "landing_page": "https://careers.shopify.com",
+            "categories": ["Engineering"],
+            "tags": ["React", "JavaScript", "CSS", "Part-time"]
+        },
+        {
+            "id": 104,
+            "title": "DevOps Engineer (Contract)",
+            "company": "Netflix",
+            "location": "Los Gatos, CA",
+            "type": "Contract",
+            "salary": "$80 - $120/hour",
+            "experience": "Senior Level",
+            "description": "Contract DevOps role to help scale Netflix's infrastructure. Work on cloud migration and automation projects.",
+            "posted": "2 weeks ago",
+            "logo": "NF",
+            "landing_page": "https://jobs.netflix.com",
+            "categories": ["Engineering"],
+            "tags": ["AWS", "Kubernetes", "Terraform", "Contract"]
+        },
+        {
+            "id": 105,
+            "title": "Software Engineer Intern",
+            "company": "Amazon",
+            "location": "New York, NY",
+            "type": "Internship",
+            "salary": "$5,000 - $7,000/month",
+            "experience": "Entry Level",
+            "description": "Join Amazon's engineering team in NYC. Work on AWS services and e-commerce platforms.",
+            "posted": "4 days ago",
+            "logo": "AM",
+            "landing_page": "https://amazon.jobs",
+            "categories": ["Engineering"],
+            "tags": ["Java", "AWS", "Python", "Internship"]
+        },
+        {
+            "id": 106,
+            "title": "Data Analyst (Part-time)",
+            "company": "Uber",
+            "location": "Chicago, IL",
+            "type": "Part-time",
+            "salary": "$35 - $50/hour",
+            "experience": "Mid Level",
+            "description": "Part-time data analysis role. Analyze ride-sharing data and help optimize operations.",
+            "posted": "1 week ago",
+            "logo": "UB",
+            "landing_page": "https://careers.uber.com",
+            "categories": ["Data Science"],
+            "tags": ["Python", "SQL", "Analytics", "Part-time"]
+        },
+        {
+            "id": 107,
+            "title": "Frontend Developer",
+            "company": "Airbnb",
+            "location": "Austin, TX",
+            "type": "Full-time",
+            "salary": "$100,000 - $140,000",
+            "experience": "Mid Level",
+            "description": "Build user interfaces for Airbnb's platform. Work on booking flows and user experience.",
+            "posted": "6 days ago",
+            "logo": "AB",
+            "landing_page": "https://careers.airbnb.com",
+            "categories": ["Engineering"],
+            "tags": ["React", "JavaScript", "CSS", "Frontend"]
+        },
+        {
+            "id": 108,
+            "title": "Machine Learning Engineer",
+            "company": "Tesla",
+            "location": "Palo Alto, CA",
+            "type": "Full-time",
+            "salary": "$130,000 - $180,000",
+            "experience": "Senior Level",
+            "description": "Work on autonomous driving algorithms and AI systems for Tesla vehicles.",
+            "posted": "3 days ago",
+            "logo": "TS",
+            "landing_page": "https://www.tesla.com/careers",
+            "categories": ["Engineering"],
+            "tags": ["Python", "TensorFlow", "Computer Vision", "AI"]
+        },
+        {
+            "id": 109,
+            "title": "Product Manager",
+            "company": "Slack",
+            "location": "Denver, CO",
+            "type": "Full-time",
+            "salary": "$120,000 - $160,000",
+            "experience": "Mid Level",
+            "description": "Lead product development for Slack's collaboration tools and features.",
+            "posted": "1 week ago",
+            "logo": "SL",
+            "landing_page": "https://slack.com/careers",
+            "categories": ["Product"],
+            "tags": ["Product Management", "Strategy", "Analytics"]
+        },
+        {
+            "id": 110,
+            "title": "Backend Developer (Remote)",
+            "company": "Stripe",
+            "location": "Remote",
+            "type": "Full-time",
+            "salary": "$110,000 - $150,000",
+            "experience": "Mid Level",
+            "description": "Build payment processing systems and APIs. Work remotely with a distributed team.",
+            "posted": "5 days ago",
+            "logo": "ST",
+            "landing_page": "https://stripe.com/jobs",
+            "categories": ["Engineering"],
+            "tags": ["Go", "Python", "APIs", "Payments", "Remote"]
         },
         {
             "id": 2,
@@ -1250,17 +1400,38 @@ def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "")
         }
     ]
     
-    # Filter jobs based on keyword if provided
+    # Filter jobs based on keyword, location, and job type
+    filtered_jobs = all_jobs
+    
+    # Filter by location if provided
+    if location:
+        location_lower = location.lower()
+        filtered_jobs = [
+            job for job in filtered_jobs 
+            if location_lower in job['location'].lower() or
+               (location_lower == "remote" and job['location'].lower() == "remote")
+        ]
+    
+    # Filter by job type
+    if job_type and job_type != "full_time":
+        job_type_map = {
+            "internship": "Internship",
+            "part_time": "Part-time", 
+            "contract": "Contract",
+            "full_time": "Full-time"
+        }
+        target_type = job_type_map.get(job_type, "Full-time")
+        filtered_jobs = [job for job in filtered_jobs if job['type'] == target_type]
+    
+    # Filter by keyword if provided
     if keyword:
         keyword_lower = keyword.lower()
         filtered_jobs = [
-            job for job in all_jobs 
+            job for job in filtered_jobs 
             if keyword_lower in job['title'].lower() or 
                keyword_lower in job['company'].lower() or
                any(keyword_lower in tag.lower() for tag in job['tags'])
         ]
-    else:
-        filtered_jobs = all_jobs
     
     # Pagination logic
     jobs_per_page = 10
@@ -1276,7 +1447,7 @@ def get_enhanced_mock_jobs(page: int = 0, keyword: str = "", location: str = "")
         "source": "Mock Data"
     }
 
-async def fetch_adzuna_jobs(page: int = 0, keyword: str = "", location: str = "us") -> dict:
+async def fetch_adzuna_jobs(page: int = 0, keyword: str = "", location: str = "us", job_type: str = "full_time") -> dict:
     """Fetch real jobs from Adzuna API"""
     
     # Get API credentials from environment
@@ -1285,7 +1456,7 @@ async def fetch_adzuna_jobs(page: int = 0, keyword: str = "", location: str = "u
     
     if not app_id or not api_key:
         print("Adzuna API credentials not found, using fallback")
-        return get_enhanced_mock_jobs(page, keyword, location)
+        return get_enhanced_mock_jobs(page, keyword, location, job_type)
     
     try:
         # Adzuna API URL
@@ -1298,6 +1469,16 @@ async def fetch_adzuna_jobs(page: int = 0, keyword: str = "", location: str = "u
             "what": keyword or "software engineer",
             "content-type": "application/json"
         }
+        
+        # Add job type filter for Adzuna API
+        if job_type and job_type != "full_time":
+            job_type_map = {
+                "internship": "internship",
+                "part_time": "part_time", 
+                "contract": "contract",
+                "full_time": "full_time"
+            }
+            params["employment_type"] = job_type_map.get(job_type, "full_time")
         
         if location and location != "us":
             params["where"] = location
@@ -1372,7 +1553,7 @@ async def fetch_adzuna_jobs(page: int = 0, keyword: str = "", location: str = "u
     except Exception as e:
         print(f"Error fetching from Adzuna API: {e}")
         # Fallback to mock data
-        return get_enhanced_mock_jobs(page, keyword, location)
+        return get_enhanced_mock_jobs(page, keyword, location, job_type)
 
 @app.get("/api/jobs")
 async def search_jobs(
@@ -1386,13 +1567,13 @@ async def search_jobs(
     
     try:
         # Use Adzuna API for live data
-        return await fetch_adzuna_jobs(page, keyword, location)
+        return await fetch_adzuna_jobs(page, keyword, location, job_type)
     except Exception as e:
         print(f"Error in job search: {e}")
         import traceback
         traceback.print_exc()
         # Fallback to mock data
-        return get_enhanced_mock_jobs(page, keyword, location)
+        return get_enhanced_mock_jobs(page, keyword, location, job_type)
 
 @app.get("/api/jobs/{job_id}")
 async def get_job_details(job_id: str):
