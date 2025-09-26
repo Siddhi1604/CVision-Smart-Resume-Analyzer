@@ -1,139 +1,299 @@
-### CVision Smart Resume Analyzer — Frontend
+<div align="center">
 
-React 18 single-page application with client-side routing, Tailwind CSS, and Firebase authentication. This folder contains only the frontend.
+# 🚀 CVision Smart Resume Analyzer
 
-### Requirements
-- Node.js 18+ and npm
+**An AI-powered resume analysis and career advancement platform**
 
-### Install & run
-```bash
-cd frontend
-npm ci   # or: npm install
-npm start
-```
-- Dev server: http://localhost:3000
-- API proxy: defined in `package.json` as `http://localhost:8000`
+## 📋 Table of Contents
 
-### Scripts (from package.json)
-```bash
-npm start      # start dev server
-npm run build  # production build to frontend/build
-npm test       # CRA test runner
-npm run eject  # eject Create React App configuration
-```
+</div>
 
-### Environment variables (Firebase)
-Create `frontend/.env` with the following keys used by `src/firebase.js`:
-```dotenv
-REACT_APP_FIREBASE_API_KEY=...
-REACT_APP_FIREBASE_AUTH_DOMAIN=...
-REACT_APP_FIREBASE_PROJECT_ID=...
-REACT_APP_FIREBASE_STORAGE_BUCKET=...
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=...
-REACT_APP_FIREBASE_APP_ID=...
-REACT_APP_FIREBASE_MEASUREMENT_ID=...
-```
-Notes:
-- If these are not set, the app falls back to inline defaults in `src/firebase.js` and shows a console warning. Prefer env vars for security.
+- [🎯 Overview](#-overview)
+- [✨ Features](#-features)
+- [🏗️ Architecture](#️-architecture)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [Project Structure](#-project-structure)
+- [🚀 Quick Start](#-quick-start)
+- [⚙️ Configuration](#️-configuration)
+- [🔧 Development](#-development)
+- [API Documentation](#-api-documentation)
+- [🚀 Deployment](#-deployment)
+- [🤝 Contributing](#-contributing)
+- [📞 Contact](#-contact)
 
-### Routing
-Defined in `src/App.js`:
-- `/` Home
-- `/analyzer` Resume Analyzer
-- `/builder` Resume Builder (protected)
-- `/dashboard` Dashboard
-- `/job-search` Job Search
-- `/feedback` Feedback
-- `/about` About
-- `/auth` Login/Signup
+---
 
-Protected routes use `src/components/ProtectedRoute.js` and `src/context/AuthContext.js`.
+## 🎯 Overview
 
-### Data fetching
-- `src/context/JobRolesContext.js` requests job roles from `/job-roles` (relative to the dev server/proxy) and provides helper selectors with a built-in fallback dataset.
+**CVision Smart Resume Analyzer** is a comprehensive career advancement platform that combines cutting-edge AI technology with intuitive design to help job seekers optimize their resumes and advance their careers. The platform offers both standard algorithmic analysis and advanced AI-powered insights to provide personalized feedback and recommendations.
 
-### Job Search Integration
-The Job Search feature now integrates with The Muse API to provide real job listings:
+### Mission Statement
 
-#### Features:
-- **Real Job Data**: Fetches live job listings from The Muse API
+CVision represents our vision of democratizing career advancement through technology. By combining cutting-edge AI with intuitive design, this platform empowers job seekers at every career stage to showcase their true potential and stand out in today's competitive job market.
+
+## ✨ Features
+
+### 🔍 Resume Analysis
+- **Dual Analysis Modes**: Standard algorithmic analysis and AI-powered insights
+- **ATS Optimization**: Ensures compatibility with Applicant Tracking Systems
+- **Keyword Matching**: Analyzes resume against job-specific requirements
+- **Format Scoring**: Evaluates resume structure and presentation
+- **Section Analysis**: Identifies missing or weak resume sections
+- **Contact Information Validation**: Checks for essential contact details
+
+### 🤖 AI-Powered Insights
+- **GPT-4 Integration**: Advanced AI analysis using OpenRouter API
+- **Personalized Recommendations**: Tailored suggestions based on target role
+- **Job Description Matching**: Compares resume against specific job requirements
+- **Skill Gap Analysis**: Identifies missing skills and competencies
+- **Content Optimization**: Suggests improvements for better impact
+
+### 📝 Resume Builder
+- **Multiple Templates**: Modern, Professional, Minimal, and Creative designs
+- **Real-time Preview**: Live preview of resume as you build
+- **Export Options**: Download as DOCX format
+- **Section Management**: Easy addition and organization of resume sections
+- **Skills Categorization**: Technical, soft skills, languages, and tools
+
+### 🔍 Job Search Integration
+- **Real Job Listings**: Live data from The Muse API and Adzuna API
 - **Advanced Filtering**: Search by company, location, experience level
-- **Pagination**: Load more jobs with infinite scroll
-- **External Links**: Click jobs to view full details on company websites
-- **Error Handling**: Graceful handling of API errors and rate limits
-- **Loading States**: Smooth loading indicators and user feedback
+- **Pagination**: Infinite scroll for seamless browsing
+- **External Links**: Direct access to company career pages
+- **Rate Limit Handling**: Graceful management of API limits
 
-#### API Endpoints:
-- `GET /api/jobs` - Search jobs with filters
-- `GET /api/jobs/{job_id}` - Get detailed job information
-- `GET /api/companies` - Search companies
-- `GET /api/companies/{company_id}` - Get company details
+### 📊 Dashboard & Analytics
+- **Analysis History**: Track all previous resume analyses
+- **Performance Metrics**: Visual charts and statistics
+- **Download Options**: Access to original uploaded files
+- **Progress Tracking**: Monitor improvement over time
 
-#### Rate Limits:
-- Without API key: 500 requests per hour
-- With API key: 3600 requests per hour
-- Rate limit headers are handled automatically
+### 🔐 User Authentication
+- **Firebase Integration**: Secure user authentication
+- **Protected Routes**: Access control for premium features
+- **User Profiles**: Personalized experience and data storage
 
-#### Environment Setup:
-Add `MUSE_API_KEY` to your backend environment variables for higher rate limits:
-```dotenv
-MUSE_API_KEY=your_muse_api_key_here
+### 💬 Feedback System
+- **User Feedback Collection**: Comprehensive feedback forms
+- **Email Notifications**: Automatic email delivery to team (`22it084@charusat.edu.in` & `22it157@charusat.edu.in`)
+- **Rating System**: 5-star rating with detailed comments
+- **Contact Integration**: Direct communication channels
+
+---
+
+## 🏗️ Architecture
+
+### System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Frontend (React + Vercel)"
+        A[User Interface] --> B[Firebase Auth]
+        A --> C[Resume Analyzer]
+        A --> D[Resume Builder]
+        A --> E[Job Search]
+        A --> F[Dashboard]
+        A --> G[Feedback]
+    end
+    
+    subgraph "Backend (FastAPI + Vercel Serverless)"
+        H[API Gateway] --> I[Resume Analysis Engine]
+        H --> J[OpenRouter AI Integration]
+        H --> K[File Processing]
+        H --> L[Job Search APIs]
+        H --> M[Gmail SMTP Service]
+    end
+    
+    subgraph "External Services"
+        N[OpenRouter API - GPT-4]
+        O[The Muse API]
+        P[Adzuna API]
+        Q[Gmail SMTP]
+        R[Firebase Auth]
+    end
+    
+    subgraph "Storage (Temporary)"
+        S[Vercel File Storage]
+        T[Analysis Data JSON]
+        U[User Data Firebase]
+    end
+    
+    A --> H
+    B --> R
+    I --> N
+    L --> O
+    L --> P
+    M --> Q
+    H --> S
+    H --> T
+    B --> U
 ```
-Get your API key from: https://www.themuse.com/developers/api/v2
 
-### Styling
-- Tailwind CSS configured via `tailwind.config.js` and `postcss.config.js`.
-- Global styles and utility classes in `src/index.css`.
+### Data Flow Architecture
 
-### Tech stack (from dependencies)
-- React 18, React Router v6, Create React App (react-scripts)
-- Tailwind CSS 3 (PostCSS + Autoprefixer)
-- Framer Motion (animations)
-- Lucide React (icons)
-- React Toastify (toasts)
-- Axios (HTTP)
-- Chart.js + react-chartjs-2 (charts)
-- React Dropzone (file uploads)
-
-### Project structure
-```
-frontend/
-  public/
-    index.html
-  src/
-    components/
-      Navbar.js
-      ProtectedRoute.js
-    context/
-      AuthContext.js
-      JobRolesContext.js
-    pages/
-      About.js
-      Auth.js
-      Dashboard.js
-      Feedback.js
-      Home.js
-      JobSearch.js
-      ResumeAnalyzer.js
-      ResumeBuilder.js
-    firebase.js
-    index.css
-    index.js
-    App.js
-  package.json
-  postcss.config.js
-  tailwind.config.js
-  README.md
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (Vercel)
+    participant B as Backend (Vercel Serverless)
+    participant AI as OpenRouter API
+    participant DB as Vercel Storage
+    
+    U->>F: Upload Resume
+    F->>B: POST /analyze-resume
+    B->>B: Extract Text (PDF/DOCX)
+    B->>AI: Send for AI Analysis
+    AI->>B: Return Analysis Results
+    B->>DB: Store Results (JSON)
+    B->>F: Return Analysis
+    F->>U: Display Results & Charts
 ```
 
-### Build
+---
+
+## 🛠️ Tech Stack
+
+### Frontend Technologies
+- **React 18** - Modern UI library with hooks and concurrent features
+- **React Router v6** - Client-side routing and navigation
+- **Tailwind CSS 3** - Utility-first CSS framework
+- **Framer Motion** - Advanced animations and transitions
+- **Chart.js + react-chartjs-2** - Data visualization and analytics
+- **React Dropzone** - File upload handling
+- **Axios** - HTTP client for API communication
+- **React Toastify** - User notifications and feedback
+- **Lucide React** - Modern icon library
+- **Firebase** - Authentication and user management
+
+### Backend Technologies
+- **FastAPI** - Modern, fast web framework for building APIs
+- **Python 3.11** - Core programming language
+- **Uvicorn** - ASGI server for FastAPI
+- **Pydantic** - Data validation and settings management
+- **OpenAI API** - AI-powered analysis via OpenRouter
+- **PDFMiner** - PDF text extraction
+- **python-docx** - Microsoft Word document processing
+- **httpx** - Async HTTP client for external APIs
+- **python-dotenv** - Environment variable management
+
+### External Services
+- **OpenRouter API** - AI model access (GPT-4)
+- **The Muse API** - Job listings and company data
+- **Adzuna API** - Additional job search data
+- **Gmail SMTP** - Email delivery service
+- **Firebase** - User authentication and management
+
+### Deployment & Hosting
+- **Vercel** - Primary hosting platform (Frontend + Backend)
+- **Heroku** - Alternative deployment option
+- **Vercel Serverless Functions** - Backend API hosting
+- **Vercel Static Hosting** - Frontend hosting
+
+### Development Tools
+- **Create React App** - React development environment
+- **PostCSS + Autoprefixer** - CSS processing
+- **ESLint** - Code linting and quality
+- **Jest** - Testing framework
+- **Git** - Version control
+
+---
+
+## 📁 Project Structure
+
+```
+CVision-Smart-Resume-Analyzer/
+├── 📁 frontend/                    # React frontend application
+│   ├── 📁 public/                   # Static assets
+│   │   ├── index.html              # Main HTML template
+│   │   └── manifest.json           # PWA manifest
+│   ├── 📁 src/                     # Source code
+│   │   ├── 📁 components/          # Reusable components
+│   │   │   ├── BeamsBackground.js # Animated background
+│   │   │   ├── Navbar.js          # Navigation component
+│   │   │   ├── ProtectedRoute.js  # Route protection
+│   │   │   ├── ResumeChart.js     # Analytics charts
+│   │   │   └── TypingHero.js      # Hero animation
+│   │   ├── �� context/             # React context providers
+│   │   │   ├── AuthContext.js     # Authentication state
+│   │   │   └── JobRolesContext.js # Job data management
+│   │   ├── �� pages/               # Page components
+│   │   │   ├── About.js           # About page
+│   │   │   ├── Auth.js            # Login/signup
+│   │   │   ├── Dashboard.js       # User dashboard
+│   │   │   ├── Feedback.js        # Feedback form
+│   │   │   ├── Home.js            # Landing page
+│   │   │   ├── JobSearch.js       # Job search interface
+│   │   │   ├── ResumeAnalyzer.js  # Resume analysis
+│   │   │   └── ResumeBuilder.js   # Resume builder
+│   │   ├── firebase.js             # Firebase configuration
+│   │   ├── index.css              # Global styles
+│   │   ├── index.js               # App entry point
+│   │   └── App.js                 # Main app component
+│   ├── 📁 build/                   # Production build output
+│   ├── package.json               # Dependencies and scripts
+│   ├── tailwind.config.js         # Tailwind configuration
+│   ├── postcss.config.js          # PostCSS configuration
+│   ├── Procfile                   # Heroku deployment config
+│   └── README.md                  # Frontend documentation
+├── �� backend/                     # FastAPI backend application
+│   ├── 📁 api/                    # Vercel serverless entry point
+│   │   └── index.py              # Vercel function handler
+│   ├── 📁 storage/                # Data storage
+│   │   └── analyses.json          # Analysis results
+│   ├── 📁 uploads/                # File uploads (temporary)
+│   │   └── *.pdf                 # Uploaded resumes
+│   ├── main.py                    # Main FastAPI application
+│   ├── requirements.txt           # Python dependencies
+│   ├── roles.json                 # Job roles dataset
+│   ├── Procfile                  # Heroku deployment config
+│   ├── runtime.txt               # Python version (3.11.0)
+│   └── env-template.txt          # Environment variables template
+├── 📁 api/                        # Additional API modules
+│   ├── analyze-resume.js         # Resume analysis logic
+│   ├── job_categories.js         # Job categories data
+│   ├── job_roles.js              # Job roles data
+│   ├── job-categories.js         # Alternative categories
+│   ├── job-roles.js              # Alternative roles
+│   └── jobs.js                   # Job search logic
+├── �� vercel.json                # Vercel deployment configuration
+├── 📄 vercel-env-template.txt     # Vercel environment variables
+├── 📄 VERCEL_DEPLOYMENT_GUIDE.md # Vercel deployment instructions
+├── 📄 HEROKU_COMMANDS.md         # Heroku deployment guide
+├── 📄 deploy-heroku.ps1          # Heroku deployment script
+├── 📄 setup-heroku.ps1           # Heroku setup script
+├── 📄 deploy-to-heroku.md        # Heroku documentation
+├── 📄 test_muse_integration.py   # API testing script
+├── 📄 heroku-installer.exe       # Heroku CLI installer
+└── 📄 README.md                  # This file
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js 18+** and npm
+- **Python 3.11+** and pip
+- **Git** for version control
+
+### 1. Clone the Repository
+
 ```bash
-cd frontend
-npm run build
-# output: frontend/build
+git clone https://github.com/Siddhi1604/CVision-Smart-Resume-Analyzer.git
+cd CVision-Smart-Resume-Analyzer
 ```
 
-### Troubleshooting
-- Env changes require restarting the dev server.
-- If the backend isn’t available, pages relying on `/job-roles` will use a fallback dataset.
-- If port 3000 is in use: `set PORT=3001 && npm start` (Windows) or `PORT=3001 npm start` (Unix).
+### 2. Backend Setup
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# macOS
