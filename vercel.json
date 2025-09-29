@@ -7,9 +7,65 @@
       "config": {
         "distDir": "frontend/build"
       }
+    },
+    {
+      "src": "backend/api/index.py",
+      "use": "@vercel/python"
     }
   ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/health",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/analyze-resume",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/ai-analyze-resume",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/user-analyses/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/download-resume/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/job-skills",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/store-analysis",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/feedback",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/job-categories",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/job-roles",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "backend/api/index.py": {
+      "maxDuration": 30
+    }
+  }
 }
