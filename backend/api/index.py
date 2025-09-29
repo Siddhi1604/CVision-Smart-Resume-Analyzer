@@ -1,4 +1,13 @@
-from main import app
+import sys
+import os
 
-# This is the entry point for Vercel serverless functions
-handler = app
+# Add the backend directory to Python path
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, backend_dir)
+
+# Import the FastAPI app
+from main import app
+from mangum import Mangum
+
+# Vercel serverless function handler
+handler = Mangum(app)
