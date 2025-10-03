@@ -260,11 +260,29 @@ const fs = require('fs');
 const path = require('path');
 
 try {
-  const analysesPath = path.join(__dirname, '../storage/analyses.json');
-  if (fs.existsSync(analysesPath)) {
+  // Try multiple possible paths for the analyses file
+  const possiblePaths = [
+    path.join(__dirname, '../storage/analyses.json'),
+    path.join(__dirname, '../../backend/storage/analyses.json'),
+    path.join(process.cwd(), 'backend/storage/analyses.json'),
+    path.join(process.cwd(), 'storage/analyses.json')
+  ];
+  
+  let analysesPath = null;
+  for (const testPath of possiblePaths) {
+    if (fs.existsSync(testPath)) {
+      analysesPath = testPath;
+      break;
+    }
+  }
+  
+  if (analysesPath) {
     const data = fs.readFileSync(analysesPath, 'utf8');
     resumeAnalysesStorage = JSON.parse(data);
-    console.log(`Loaded ${resumeAnalysesStorage.length} existing analyses`);
+    console.log(`Loaded ${resumeAnalysesStorage.length} existing analyses from ${analysesPath}`);
+  } else {
+    console.log('No existing analyses file found, starting with empty storage');
+    resumeAnalysesStorage = [];
   }
 } catch (error) {
   console.log('Could not load existing analyses:', error.message);
@@ -274,12 +292,33 @@ try {
 // Save analyses to file
 function saveAnalysesToFile() {
   try {
-    const analysesPath = path.join(__dirname, '../storage/analyses.json');
-    const storageDir = path.dirname(analysesPath);
-    if (!fs.existsSync(storageDir)) {
-      fs.mkdirSync(storageDir, { recursive: true });
+    // Try to find the existing analyses file first
+    const possiblePaths = [
+      path.join(__dirname, '../storage/analyses.json'),
+      path.join(__dirname, '../../backend/storage/analyses.json'),
+      path.join(process.cwd(), 'backend/storage/analyses.json'),
+      path.join(process.cwd(), 'storage/analyses.json')
+    ];
+    
+    let analysesPath = null;
+    for (const testPath of possiblePaths) {
+      if (fs.existsSync(testPath)) {
+        analysesPath = testPath;
+        break;
+      }
     }
+    
+    // If no existing file found, use the first path and create directory
+    if (!analysesPath) {
+      analysesPath = path.join(__dirname, '../storage/analyses.json');
+      const storageDir = path.dirname(analysesPath);
+      if (!fs.existsSync(storageDir)) {
+        fs.mkdirSync(storageDir, { recursive: true });
+      }
+    }
+    
     fs.writeFileSync(analysesPath, JSON.stringify(resumeAnalysesStorage, null, 2));
+    console.log(`Saved ${resumeAnalysesStorage.length} analyses to ${analysesPath}`);
   } catch (error) {
     console.log('Could not save analyses:', error.message);
   }
@@ -313,71 +352,148 @@ const jobRolesDataset = {
   }
 };
 
-// Simple resume analysis function
+// Enhanced resume analysis function
 function analyzeResume(resumeText, jobCategory, jobRole) {
   const skills = jobRolesDataset[jobCategory]?.[jobRole] || [];
   
-  // Simple keyword matching
+  // Enhanced keyword matching with synonyms and variations
   const resumeLower = resumeText.toLowerCase();
-  const matchedSkills = skills.filter(skill => 
-    resumeLower.includes(skill.toLowerCase())
-  );
+  const matchedSkills = [];
+  const missingSkills = [];
+  
+  skills.forEach(skill => {
+    const skillLower = skill.toLowerCase();
+    let found = false;
+    
+    // Direct match
+    if (resumeLower.includes(skillLower)) {
+      matchedSkills.push(skill);
+      found = true;
+    }
+    
+    // Check for common variations and synonyms
+    const variations = {
+      'javascript': ['js', 'nodejs', 'node.js', 'ecmascript'],
+      'typescript': ['ts'],
+      'python': ['py'],
+      'react': ['reactjs', 'react.js'],
+      'node.js': ['nodejs', 'node'],
+      'sql': ['postgresql', 'mysql', 'database'],
+      'docker': ['containerization'],
+      'kubernetes': ['k8s'],
+      'aws': ['amazon web services', 'cloud'],
+      'git': ['version control', 'github', 'gitlab'],
+      'testing': ['unit testing', 'integration testing', 'test automation'],
+      'ci/cd': ['continuous integration', 'continuous deployment', 'devops'],
+      'rest': ['restful', 'api'],
+      'machine learning': ['ml', 'ai', 'artificial intelligence'],
+      'data science': ['data analysis', 'analytics']
+    };
+    
+    if (!found && variations[skillLower]) {
+      for (const variation of variations[skillLower]) {
+        if (resumeLower.includes(variation)) {
+          matchedSkills.push(skill);
+          found = true;
+          break;
+        }
+      }
+    }
+    
+    if (!found) {
+      missingSkills.push(skill);
+    }
+  });
   
   const keywordMatchScore = skills.length > 0 ? 
     Math.round((matchedSkills.length / skills.length) * 100) : 0;
   
-  // Simple format scoring
+  // Enhanced format scoring
   const wordCount = resumeText.split(/\s+/).length;
   let formatScore = 100;
-  if (wordCount < 250) formatScore -= 20;
-  if (wordCount > 3000) formatScore -= 15;
-  if (!resumeText.includes('•') && !resumeText.includes('-')) formatScore -= 10;
   
-  // Simple section scoring
-  const sections = ['summary', 'experience', 'education', 'skills'];
+  // Word count penalties
+  if (wordCount < 200) formatScore -= 25;
+  else if (wordCount < 300) formatScore -= 15;
+  else if (wordCount > 2000) formatScore -= 20;
+  else if (wordCount > 3000) formatScore -= 30;
+  
+  // Formatting penalties
+  if (!resumeText.includes('•') && !resumeText.includes('-') && !resumeText.includes('*')) formatScore -= 15;
+  if (!resumeText.includes('@') && !resumeText.includes('email')) formatScore -= 10;
+  if (!resumeText.includes('experience') && !resumeText.includes('work')) formatScore -= 10;
+  
+  // Enhanced section scoring
+  const sections = [
+    { name: 'summary', keywords: ['summary', 'objective', 'profile', 'about'] },
+    { name: 'experience', keywords: ['experience', 'work', 'employment', 'career'] },
+    { name: 'education', keywords: ['education', 'degree', 'university', 'college'] },
+    { name: 'skills', keywords: ['skills', 'technical', 'technologies', 'tools'] }
+  ];
+  
   const foundSections = sections.filter(section => 
-    resumeLower.includes(section)
+    section.keywords.some(keyword => resumeLower.includes(keyword))
   );
   const sectionScore = Math.round((foundSections.length / sections.length) * 100);
   
-  // Calculate ATS score
+  // Calculate ATS score with weighted components
   const atsScore = Math.round(
-    0.5 * keywordMatchScore + 
-    0.25 * sectionScore + 
-    0.25 * formatScore
+    0.4 * keywordMatchScore + 
+    0.3 * sectionScore + 
+    0.3 * formatScore
   );
   
-  // Generate suggestions
+  // Enhanced suggestions generation
   const suggestions = [];
-  if (matchedSkills.length < skills.length) {
-    const missingSkills = skills.filter(skill => 
-      !matchedSkills.includes(skill)
-    );
-    suggestions.push(`Include relevant skills: ${missingSkills.slice(0, 5).join(', ')}`);
+  
+  if (missingSkills.length > 0) {
+    const topMissing = missingSkills.slice(0, 5);
+    suggestions.push(`Consider adding these relevant skills: ${topMissing.join(', ')}`);
   }
-  if (keywordMatchScore < 70) {
-    suggestions.push('Add more role-specific keywords across Skills and Experience sections.');
+  
+  if (keywordMatchScore < 60) {
+    suggestions.push('Add more role-specific keywords throughout your resume, especially in the Skills and Experience sections.');
+  } else if (keywordMatchScore < 80) {
+    suggestions.push('Good keyword coverage! Consider adding a few more relevant technical terms.');
   }
-  if (sectionScore < 70) {
-    suggestions.push('Ensure key sections like Summary, Skills, Experience, and Education are present.');
+  
+  if (sectionScore < 60) {
+    suggestions.push('Ensure you have clearly labeled sections for Summary, Skills, Experience, and Education.');
   }
-  if (formatScore < 80) {
-    suggestions.push('Use bullet points and ensure the document text is selectable.');
+  
+  if (formatScore < 70) {
+    suggestions.push('Improve formatting by using bullet points, consistent spacing, and ensuring all text is selectable.');
   }
+  
+  if (wordCount < 250) {
+    suggestions.push('Consider adding more detail to your experience and projects to reach 300-500 words.');
+  } else if (wordCount > 2000) {
+    suggestions.push('Your resume might be too long. Consider condensing to 1-2 pages for better ATS performance.');
+  }
+  
+  // Contact information suggestions
+  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resumeText);
+  const hasPhone = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText);
+  const hasLinkedIn = resumeLower.includes('linkedin');
+  const hasGithub = resumeLower.includes('github');
+  
+  if (!hasEmail) suggestions.push('Add a professional email address in your contact information.');
+  if (!hasPhone) suggestions.push('Include a phone number for better contact options.');
+  if (!hasLinkedIn && !hasGithub) suggestions.push('Consider adding LinkedIn or GitHub profile links.');
   
   return {
     ats_score: atsScore,
     keyword_match: { score: keywordMatchScore },
-    missing_skills: skills.filter(skill => !matchedSkills.includes(skill)),
+    missing_skills: missingSkills,
     format_score: formatScore,
     section_score: sectionScore,
     suggestions: suggestions,
     jd_match_score: null,
     contact: {
-      has_email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resumeText),
-      has_phone: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText),
-      has_linkedin: resumeLower.includes('linkedin'),
-      has_github: resumeLower.includes('github')
+      has_email: hasEmail,
+      has_phone: hasPhone,
+      has_linkedin: hasLinkedIn,
+      has_github: hasGithub
     },
     metrics: {
       word_count: wordCount,
@@ -396,33 +512,59 @@ app.post('/analyze-resume', (req, res) => {
       return res.status(400).json({ error: 'Job category and role are required' });
     }
     
-    // For now, return a mock analysis since we don't have file upload handling
-    const mockResumeText = `
-      John Doe
-      Software Engineer
-      
-      Summary:
-      Experienced software engineer with 5+ years of experience in web development.
-      
-      Skills:
-      JavaScript, Python, React, Node.js, SQL
-      
-      Experience:
-      • Developed web applications using React and Node.js
-      • Worked with databases and APIs
-      • Collaborated with cross-functional teams
-      
-      Education:
-      Bachelor's in Computer Science
-    `;
+    // Get resume text from request or use a sample for demonstration
+    let resumeText = req.body.resume_text || req.body.text;
     
-    const analysis = analyzeResume(mockResumeText, job_category, job_role);
+    if (!resumeText) {
+      // Use a more realistic sample resume for demonstration
+      resumeText = `
+        John Smith
+        Software Engineer
+        john.smith@email.com | (555) 123-4567 | linkedin.com/in/johnsmith
+        
+        SUMMARY
+        Experienced software engineer with 5+ years of experience in full-stack web development. 
+        Proficient in JavaScript, Python, React, and Node.js. Strong background in building 
+        scalable applications and working with databases.
+        
+        TECHNICAL SKILLS
+        • Programming Languages: JavaScript, Python, Java, SQL
+        • Frameworks: React, Node.js, Express, Django
+        • Databases: PostgreSQL, MongoDB, MySQL
+        • Tools: Git, Docker, AWS, Linux
+        
+        PROFESSIONAL EXPERIENCE
+        
+        Senior Software Engineer | TechCorp Inc. | 2020 - Present
+        • Developed and maintained web applications using React and Node.js
+        • Implemented RESTful APIs and database schemas
+        • Collaborated with cross-functional teams to deliver high-quality software
+        • Improved application performance by 30% through code optimization
+        
+        Software Engineer | StartupXYZ | 2018 - 2020
+        • Built responsive web interfaces using React and JavaScript
+        • Worked with PostgreSQL and MongoDB databases
+        • Participated in agile development processes
+        • Contributed to open-source projects
+        
+        EDUCATION
+        Bachelor of Science in Computer Science
+        University of Technology | 2014 - 2018
+        
+        PROJECTS
+        • E-commerce Platform: Built a full-stack e-commerce application using React and Node.js
+        • Task Management App: Developed a collaborative task management tool with real-time updates
+        • Data Visualization Dashboard: Created interactive dashboards using Python and D3.js
+      `;
+    }
+    
+    const analysis = analyzeResume(resumeText, job_category, job_role);
     
     // Store the analysis
     const analysisData = {
       id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
       user_id: user_id,
-      resume_name: 'Sample Resume',
+      resume_name: resumeText.includes('John Smith') ? 'Sample Resume' : 'Custom Resume',
       job_category: job_category,
       job_role: job_role,
       analysis_type: 'standard',
@@ -454,33 +596,59 @@ app.post('/ai-analyze-resume', (req, res) => {
       return res.status(400).json({ error: 'Job category and role are required' });
     }
     
-    // For now, return a mock AI analysis
-    const mockResumeText = `
-      John Doe
-      Software Engineer
-      
-      Summary:
-      Experienced software engineer with 5+ years of experience in web development.
-      
-      Skills:
-      JavaScript, Python, React, Node.js, SQL
-      
-      Experience:
-      • Developed web applications using React and Node.js
-      • Worked with databases and APIs
-      • Collaborated with cross-functional teams
-      
-      Education:
-      Bachelor's in Computer Science
-    `;
+    // Get resume text from request or use a sample for demonstration
+    let resumeText = req.body.resume_text || req.body.text;
     
-    const analysis = analyzeResume(mockResumeText, job_category, job_role);
+    if (!resumeText) {
+      // Use a more realistic sample resume for demonstration
+      resumeText = `
+        John Smith
+        Software Engineer
+        john.smith@email.com | (555) 123-4567 | linkedin.com/in/johnsmith
+        
+        SUMMARY
+        Experienced software engineer with 5+ years of experience in full-stack web development. 
+        Proficient in JavaScript, Python, React, and Node.js. Strong background in building 
+        scalable applications and working with databases.
+        
+        TECHNICAL SKILLS
+        • Programming Languages: JavaScript, Python, Java, SQL
+        • Frameworks: React, Node.js, Express, Django
+        • Databases: PostgreSQL, MongoDB, MySQL
+        • Tools: Git, Docker, AWS, Linux
+        
+        PROFESSIONAL EXPERIENCE
+        
+        Senior Software Engineer | TechCorp Inc. | 2020 - Present
+        • Developed and maintained web applications using React and Node.js
+        • Implemented RESTful APIs and database schemas
+        • Collaborated with cross-functional teams to deliver high-quality software
+        • Improved application performance by 30% through code optimization
+        
+        Software Engineer | StartupXYZ | 2018 - 2020
+        • Built responsive web interfaces using React and JavaScript
+        • Worked with PostgreSQL and MongoDB databases
+        • Participated in agile development processes
+        • Contributed to open-source projects
+        
+        EDUCATION
+        Bachelor of Science in Computer Science
+        University of Technology | 2014 - 2018
+        
+        PROJECTS
+        • E-commerce Platform: Built a full-stack e-commerce application using React and Node.js
+        • Task Management App: Developed a collaborative task management tool with real-time updates
+        • Data Visualization Dashboard: Created interactive dashboards using Python and D3.js
+      `;
+    }
+    
+    const analysis = analyzeResume(resumeText, job_category, job_role);
     
     // Store the analysis
     const analysisData = {
       id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
       user_id: user_id,
-      resume_name: 'Sample Resume',
+      resume_name: resumeText.includes('John Smith') ? 'Sample Resume' : 'Custom Resume',
       job_category: job_category,
       job_role: job_role,
       analysis_type: 'ai',

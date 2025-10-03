@@ -12,58 +12,58 @@
       }
     },
     {
-      "src": "backend/api/index.py",
-      "use": "@vercel/python"
+      "src": "backend/api/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/health",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/job-categories",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/job-roles",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/analyze-resume",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/ai-analyze-resume",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/build-resume",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/send-feedback",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/user-analyses/(.*)",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/download-resume/(.*)",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/job-skills",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/store-analysis",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/api/(.*)",
-      "dest": "/backend/api/index.py"
+      "dest": "/backend/api/index.js"
     },
     {
       "src": "/static/(.*)",
