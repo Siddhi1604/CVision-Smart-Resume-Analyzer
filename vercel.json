@@ -57,7 +57,7 @@
     },
     {
       "src": "/job-roles", 
-      "/dest": "/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/send-feedback",
