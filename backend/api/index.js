@@ -54,45 +54,6 @@ const saveAnalysesToFile = () => {
 // Initialize storage
 loadAnalysesFromFile();
 
-// Add some sample data for testing if storage is empty
-if (resumeAnalysesStorage.length === 0) {
-  const sampleAnalysis = {
-    id: 'sample-1',
-    user_id: 'default_user',
-    resume_name: 'Sample Resume.pdf',
-    job_category: 'Technology',
-    job_role: 'Software Engineer',
-    analysis_type: 'standard',
-    analysis_result: {
-      ats_score: 85,
-      keyword_match: { score: 80 },
-      missing_skills: ['docker', 'kubernetes'],
-      format_score: 90,
-      section_score: 85,
-      suggestions: [
-        'Include relevant skills: docker, kubernetes',
-        'Add more role-specific keywords across Skills and Experience sections'
-      ],
-      contact: {
-        email: true,
-        phone: true,
-        linkedin: true,
-        github: false
-      },
-      metrics: {
-        word_count: 450,
-        reading_time_minutes: 3
-      }
-    },
-    created_at: new Date().toISOString(),
-    file_name: 'Sample Resume.pdf',
-    file_path: null
-  };
-  
-  resumeAnalysesStorage.push(sampleAnalysis);
-  saveAnalysesToFile();
-}
-
 // Configure multer for file uploads (Vercel-compatible)
 const upload = multer({ 
   dest: '/tmp/uploads/',
@@ -218,9 +179,9 @@ const performAIAnalysis = async (resumeText, jobCategory, jobRole, customJobDesc
   const requiredSkills = ROLES_DATASET[jobCategory]?.[jobRole] || [];
   const presentSections = getPresentSections(resumeText);
   
-  // Build the AI prompt
-  let prompt = `Analyze this resume for a ${jobRole} position in ${jobCategory}. 
-  
+  // Build the AI prompt with improved scoring guidelines
+  let prompt = `You are an expert ATS (Applicant Tracking System) resume analyzer. Analyze this resume for a ${jobRole} position in ${jobCategory}.
+
 Resume Text:
 ${resumeText}
 
@@ -231,14 +192,28 @@ Present Sections: ${presentSections.join(', ')}
 
 ${customJobDescription ? `Custom Job Description: ${customJobDescription}` : ''}
 
-Please provide a comprehensive analysis in JSON format with the following structure:
+IMPORTANT SCORING GUIDELINES:
+- ATS Score (0-100): Based on overall resume quality, keyword presence, and ATS compatibility
+  * 90-100: Excellent - Strong match with all required skills and perfect formatting
+  * 80-89: Very Good - Most skills present with good formatting
+  * 70-79: Good - Adequate skills with decent formatting
+  * 60-69: Fair - Some skills missing or formatting issues
+  * Below 60: Needs Improvement - Missing critical skills or major formatting issues
+
+- Keyword Match Score (0-100): Percentage of required skills found in resume
+- Format Score (0-100): Resume structure, readability, and ATS-friendliness
+- Section Score (0-100): Completeness of required sections (Summary, Experience, Education, Skills, Contact)
+
+Analyze carefully and provide varied, accurate scores based on the actual resume content. DO NOT default to average scores.
+
+Return ONLY valid JSON in this exact format:
 {
   "ats_score": <number 0-100>,
   "keyword_match": {"score": <number 0-100>},
-  "missing_skills": [<array of missing skills>],
+  "missing_skills": [<array of missing required skills>],
   "format_score": <number 0-100>,
   "section_score": <number 0-100>,
-  "suggestions": [<array of improvement suggestions>],
+  "suggestions": [<array of 3-5 specific, actionable improvement suggestions>],
   "jd_match_score": <number 0-100 if custom job description provided>,
   "contact": {
     "email": <boolean>,
@@ -250,29 +225,20 @@ Please provide a comprehensive analysis in JSON format with the following struct
     "word_count": <number>,
     "reading_time_minutes": <number>
   }
-}
-
-Focus on:
-1. ATS compatibility and keyword matching
-2. Missing skills that should be added
-3. Format and structure improvements
-4. Section completeness
-5. Contact information presence
-6. Specific, actionable suggestions
-
-Return only valid JSON, no additional text.`;
+}`;
 
   try {
     console.log('🤖 Calling AI service for resume analysis...');
     const completion = await openaiClient.chat.completions.create({
       model: 'openai/gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
+      temperature: 0.7,
       max_tokens: 1500,
     });
 
     const aiResponse = completion.choices[0].message.content.trim();
     console.log('✅ AI response received');
+    console.log('🔍 Raw AI Response (first 200 chars):', aiResponse.substring(0, 200) + '...');
     
     // Clean up the response
     let cleanedResponse = aiResponse;
@@ -284,6 +250,8 @@ Return only valid JSON, no additional text.`;
     }
     
     const analysisData = JSON.parse(cleanedResponse);
+    console.log('🔍 Parsed ATS Score:', analysisData?.ats_score);
+    console.log('🔍 Parsed Keyword Match Score:', analysisData?.keyword_match?.score);
     
     return {
       ats_score: analysisData.ats_score || 0,
