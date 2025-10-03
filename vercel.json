@@ -22,63 +22,67 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/health",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/analyze-resume",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/ai-analyze-resume",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/user-analyses/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/download-resume/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/job-skills",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/store-analysis",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/job-categories",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/job-roles",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/send-feedback",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/build-resume",
-      "dest": "/api/index.py"
+      "dest": "/backend/api/index.py"
     },
     {
       "src": "/static/(.*)",
-      "dest": "/static/$1"
+      "dest": "/frontend/static/$1"
     },
     {
       "src": "/manifest.json",
-      "dest": "/manifest.json"
+      "dest": "/frontend/manifest.json"
+    },
+    {
+      "src": "/asset-manifest.json",
+      "dest": "/frontend/asset-manifest.json"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/frontend/index.html"
     }
   ]
 }
