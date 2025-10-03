@@ -6,8 +6,27 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
+const OpenAI = require('openai');
 
 const app = express();
+
+// Initialize OpenAI client for AI analysis
+const openaiApiKey = process.env.OPENROUTER_API_KEY;
+let openaiClient = null;
+
+if (!openaiApiKey) {
+  console.log('Warning: OPENROUTER_API_KEY not found in environment variables. AI analysis will not work.');
+} else {
+  openaiClient = new OpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: openaiApiKey,
+    defaultHeaders: {
+      'HTTP-Referer': 'http://localhost:3000',
+      'X-Title': 'CVision Resume Analyzer',
+    }
+  });
+  console.log('✅ OpenAI client initialized successfully');
+}
 
 // In-memory storage for resume analyses (Vercel-compatible)
 let resumeAnalysesStorage = [];
@@ -182,6 +201,115 @@ const scoreFormat = (resumeText, fileSize) => {
   return Math.min(100, Math.max(0, score));
 };
 
+const getPresentSections = (resumeText) => {
+  const sections = ['summary', 'experience', 'education', 'skills', 'contact', 'projects', 'certifications'];
+  const resumeLower = resumeText.toLowerCase();
+  return sections.filter(section => 
+    resumeLower.includes(section) || resumeLower.includes(section + 's')
+  );
+};
+
+// AI Analysis function
+const performAIAnalysis = async (resumeText, jobCategory, jobRole, customJobDescription) => {
+  if (!openaiClient) {
+    throw new Error('AI analysis service not configured. Please set OPENROUTER_API_KEY environment variable.');
+  }
+
+  const requiredSkills = ROLES_DATASET[jobCategory]?.[jobRole] || [];
+  const presentSections = getPresentSections(resumeText);
+  
+  // Build the AI prompt
+  let prompt = `Analyze this resume for a ${jobRole} position in ${jobCategory}. 
+  
+Resume Text:
+${resumeText}
+
+Required Skills for ${jobRole}:
+${requiredSkills.join(', ')}
+
+Present Sections: ${presentSections.join(', ')}
+
+${customJobDescription ? `Custom Job Description: ${customJobDescription}` : ''}
+
+Please provide a comprehensive analysis in JSON format with the following structure:
+{
+  "ats_score": <number 0-100>,
+  "keyword_match": {"score": <number 0-100>},
+  "missing_skills": [<array of missing skills>],
+  "format_score": <number 0-100>,
+  "section_score": <number 0-100>,
+  "suggestions": [<array of improvement suggestions>],
+  "jd_match_score": <number 0-100 if custom job description provided>,
+  "contact": {
+    "email": <boolean>,
+    "phone": <boolean>,
+    "linkedin": <boolean>,
+    "github": <boolean>
+  },
+  "metrics": {
+    "word_count": <number>,
+    "reading_time_minutes": <number>
+  }
+}
+
+Focus on:
+1. ATS compatibility and keyword matching
+2. Missing skills that should be added
+3. Format and structure improvements
+4. Section completeness
+5. Contact information presence
+6. Specific, actionable suggestions
+
+Return only valid JSON, no additional text.`;
+
+  try {
+    console.log('🤖 Calling AI service for resume analysis...');
+    const completion = await openaiClient.chat.completions.create({
+      model: 'openai/gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1500,
+    });
+
+    const aiResponse = completion.choices[0].message.content.trim();
+    console.log('✅ AI response received');
+    
+    // Clean up the response
+    let cleanedResponse = aiResponse;
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.slice(7);
+    }
+    if (cleanedResponse.endsWith('```')) {
+      cleanedResponse = cleanedResponse.slice(0, -3);
+    }
+    
+    const analysisData = JSON.parse(cleanedResponse);
+    
+    return {
+      ats_score: analysisData.ats_score || 0,
+      keyword_match: analysisData.keyword_match || { score: 0 },
+      missing_skills: analysisData.missing_skills || [],
+      format_score: analysisData.format_score || 0,
+      section_score: analysisData.section_score || 0,
+      suggestions: analysisData.suggestions || [],
+      jd_match_score: analysisData.jd_match_score,
+      contact: analysisData.contact || {
+        email: false,
+        phone: false,
+        linkedin: false,
+        github: false
+      },
+      metrics: analysisData.metrics || {
+        word_count: resumeText.split(/\s+/).length,
+        reading_time_minutes: Math.max(1, Math.round(resumeText.split(/\s+/).length / 200))
+      }
+    };
+  } catch (error) {
+    console.error('AI Analysis error:', error);
+    throw new Error('Failed to perform AI analysis: ' + error.message);
+  }
+};
+
 // Adzuna API function
 async function fetchAdzunaJobs(page, keyword, location, jobType, appId, apiKey) {
   const baseUrl = `https://api.adzuna.com/v1/api/jobs/${location}/search/${page + 1}`;
@@ -255,7 +383,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is working!' });
+  res.json({ 
+    status: 'ok', 
+    message: 'Backend is working!',
+    ai_enabled: !!openaiClient
+  });
 });
 
 // Job categories endpoint
@@ -287,125 +419,6 @@ app.get('/job-roles', (req, res) => {
     }
   };
   res.json(roles);
-});
-
-// Job search endpoint
-app.get('/api/jobs', async (req, res) => {
-  const { page = 0, keyword = 'software engineer', location = 'us', job_type = 'full_time' } = req.query;
-  
-  // Get Adzuna API credentials from environment
-  const appId = process.env.ADZUNA_APP_ID;
-  const apiKey = process.env.ADZUNA_API_KEY;
-  
-  // Try Adzuna API first if credentials are available
-  if (appId && apiKey) {
-    try {
-      const adzunaResponse = await fetchAdzunaJobs(page, keyword, location, job_type, appId, apiKey);
-      return res.json(adzunaResponse);
-    } catch (error) {
-      console.log('Adzuna API failed, falling back to mock data:', error.message);
-      // Fall through to mock data
-    }
-  } else {
-    console.log('Adzuna API credentials not found, using mock data');
-  }
-  
-  // Mock job data (simplified version of the Python backend)
-  const mockJobs = [
-    {
-      id: 1,
-      title: 'Senior Software Engineer',
-      company: 'TechCorp Inc.',
-      location: 'San Francisco, CA',
-      salary: '$120,000 - $150,000',
-      job_type: 'full_time',
-      description: 'We are looking for a senior software engineer to join our team...',
-      landing_page: 'https://example.com/job/1',
-      created: '2024-01-15T10:00:00Z'
-    },
-    {
-      id: 2,
-      title: 'Frontend Developer',
-      company: 'StartupXYZ',
-      location: 'Remote',
-      salary: '$90,000 - $110,000',
-      job_type: 'full_time',
-      description: 'Join our frontend team to build amazing user experiences...',
-      landing_page: 'https://example.com/job/2',
-      created: '2024-01-14T15:30:00Z'
-    },
-    {
-      id: 3,
-      title: 'Backend Developer',
-      company: 'DataFlow Systems',
-      location: 'New York, NY',
-      salary: '$100,000 - $130,000',
-      job_type: 'full_time',
-      description: 'Build scalable backend systems for our data platform...',
-      landing_page: 'https://example.com/job/3',
-      created: '2024-01-13T09:15:00Z'
-    },
-    {
-      id: 4,
-      title: 'Full Stack Developer',
-      company: 'InnovateTech',
-      location: 'Austin, TX',
-      salary: '$95,000 - $125,000',
-      job_type: 'full_time',
-      description: 'Work on both frontend and backend development...',
-      landing_page: 'https://example.com/job/4',
-      created: '2024-01-12T14:45:00Z'
-    },
-    {
-      id: 5,
-      title: 'Data Scientist',
-      company: 'Analytics Pro',
-      location: 'Seattle, WA',
-      salary: '$110,000 - $140,000',
-      job_type: 'full_time',
-      description: 'Apply machine learning and statistical analysis...',
-      landing_page: 'https://example.com/job/5',
-      created: '2024-01-11T11:20:00Z'
-    }
-  ];
-
-  // Simple filtering based on keyword
-  let filteredJobs = mockJobs;
-  if (keyword && keyword !== 'software engineer') {
-    filteredJobs = mockJobs.filter(job => 
-      job.title.toLowerCase().includes(keyword.toLowerCase()) ||
-      job.description.toLowerCase().includes(keyword.toLowerCase())
-    );
-  }
-
-  // Pagination
-  const pageSize = 10;
-  const startIndex = parseInt(page) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
-
-  res.json({
-    jobs: paginatedJobs,
-    page_count: Math.ceil(filteredJobs.length / pageSize),
-    total_jobs: filteredJobs.length,
-    source: 'Mock Data'
-  });
-});
-
-// Job details endpoint
-app.get('/api/jobs/:jobId', (req, res) => {
-  const { jobId } = req.params;
-  // Return a mock job detail
-  res.json({
-    id: parseInt(jobId),
-    title: 'Software Engineer',
-    company: 'TechCorp Inc.',
-    location: 'San Francisco, CA',
-    salary: '$120,000 - $150,000',
-    description: 'Full job description here...',
-    how_to_apply: 'Please visit the company\'s careers page to apply for this position.',
-    company_url: 'https://example.com/careers'
-  });
 });
 
 // Resume analysis endpoint
@@ -547,67 +560,9 @@ app.post('/ai-analyze-resume', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Could not extract text from the provided content' });
     }
 
-    // Get required skills for the job role
-    const requiredSkills = ROLES_DATASET[job_category]?.[job_role] || [];
-    
-    // Calculate scores (same as standard analysis for now)
-    const keywordMatchScore = scoreKeywordMatch(resumeText, requiredSkills);
-    const sectionScore = scoreSections(resumeText);
-    const formatScore = scoreFormat(resumeText, req.file?.size || 0);
-    const atsScore = Math.round(0.5 * keywordMatchScore + 0.25 * sectionScore + 0.25 * formatScore);
-
-    // Enhanced suggestions for AI analysis
-    const suggestions = [];
-    const missingSkills = requiredSkills.filter(skill => 
-      !resumeText.toLowerCase().includes(skill.toLowerCase())
-    );
-
-    if (missingSkills.length > 0) {
-      suggestions.push(`Include relevant skills: ${missingSkills.slice(0, 5).join(', ')}`);
-    }
-    if (keywordMatchScore < 70) {
-      suggestions.push('Add more role-specific keywords across Skills and Experience sections');
-    }
-    if (sectionScore < 70) {
-      suggestions.push('Ensure key sections like Summary, Skills, Experience, and Education are present');
-    }
-    if (formatScore < 80) {
-      suggestions.push('Use bullet points and ensure the document text is selectable');
-    }
-    if (custom_job_description) {
-      suggestions.push('Tailor quantified achievements to the provided job description');
-    }
-
-    // Check for contact information
-    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-    const phoneRegex = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/;
-    const hasEmail = emailRegex.test(resumeText);
-    const hasPhone = phoneRegex.test(resumeText);
-
-    const contact = {
-      email: hasEmail,
-      phone: hasPhone,
-      linkedin: resumeText.toLowerCase().includes('linkedin'),
-      github: resumeText.toLowerCase().includes('github')
-    };
-
-    // Calculate word count and reading time
-    const wordCount = resumeText.split(/\s+/).length;
-    const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
-
-    const result = {
-      ats_score: atsScore,
-      keyword_match: { score: keywordMatchScore },
-      missing_skills: missingSkills.slice(0, 10),
-      format_score: formatScore,
-      section_score: sectionScore,
-      suggestions: suggestions,
-      contact: contact,
-      metrics: {
-        word_count: wordCount,
-        reading_time_minutes: readingTimeMinutes
-      }
-    };
+    // Perform AI analysis
+    console.log('🚀 Starting AI analysis for:', fileName);
+    const result = await performAIAnalysis(resumeText, job_category, job_role, custom_job_description);
 
     // Store the analysis
     const analysisId = uuidv4();
@@ -627,20 +582,136 @@ app.post('/ai-analyze-resume', upload.single('file'), async (req, res) => {
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
 
+    console.log('✅ AI analysis completed and stored');
     res.json(result);
 
   } catch (error) {
     console.error('AI Analysis error:', error);
-    res.status(500).json({ error: 'Internal server error during AI analysis' });
+    if (error.message.includes('AI analysis service not configured')) {
+      res.status(503).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Internal server error during AI analysis' });
+    }
   }
 });
 
-app.post('/build-resume', (req, res) => {
-  res.json({ message: 'Build resume endpoint - Node.js backend working' });
+// Job search endpoint
+app.get('/api/jobs', async (req, res) => {
+  const { page = 0, keyword = 'software engineer', location = 'us', job_type = 'full_time' } = req.query;
+  
+  // Get Adzuna API credentials from environment
+  const appId = process.env.ADZUNA_APP_ID;
+  const apiKey = process.env.ADZUNA_API_KEY;
+  
+  // Try Adzuna API first if credentials are available
+  if (appId && apiKey) {
+    try {
+      const adzunaResponse = await fetchAdzunaJobs(page, keyword, location, job_type, appId, apiKey);
+      return res.json(adzunaResponse);
+    } catch (error) {
+      console.log('Adzuna API failed, falling back to mock data:', error.message);
+      // Fall through to mock data
+    }
+  } else {
+    console.log('Adzuna API credentials not found, using mock data');
+  }
+  
+  // Mock job data (simplified version of the Python backend)
+  const mockJobs = [
+    {
+      id: 1,
+      title: 'Senior Software Engineer',
+      company: 'TechCorp Inc.',
+      location: 'San Francisco, CA',
+      salary: '$120,000 - $150,000',
+      job_type: 'full_time',
+      description: 'We are looking for a senior software engineer to join our team...',
+      landing_page: 'https://example.com/job/1',
+      created: '2024-01-15T10:00:00Z'
+    },
+    {
+      id: 2,
+      title: 'Frontend Developer',
+      company: 'StartupXYZ',
+      location: 'Remote',
+      salary: '$90,000 - $110,000',
+      job_type: 'full_time',
+      description: 'Join our frontend team to build amazing user experiences...',
+      landing_page: 'https://example.com/job/2',
+      created: '2024-01-14T15:30:00Z'
+    },
+    {
+      id: 3,
+      title: 'Backend Developer',
+      company: 'DataFlow Systems',
+      location: 'New York, NY',
+      salary: '$100,000 - $130,000',
+      job_type: 'full_time',
+      description: 'Build scalable backend systems for our data platform...',
+      landing_page: 'https://example.com/job/3',
+      created: '2024-01-13T09:15:00Z'
+    },
+    {
+      id: 4,
+      title: 'Full Stack Developer',
+      company: 'InnovateTech',
+      location: 'Austin, TX',
+      salary: '$95,000 - $125,000',
+      job_type: 'full_time',
+      description: 'Work on both frontend and backend development...',
+      landing_page: 'https://example.com/job/4',
+      created: '2024-01-12T14:45:00Z'
+    },
+    {
+      id: 5,
+      title: 'Data Scientist',
+      company: 'Analytics Pro',
+      location: 'Seattle, WA',
+      salary: '$110,000 - $140,000',
+      job_type: 'full_time',
+      description: 'Apply machine learning and statistical analysis...',
+      landing_page: 'https://example.com/job/5',
+      created: '2024-01-11T11:20:00Z'
+    }
+  ];
+
+  // Simple filtering based on keyword
+  let filteredJobs = mockJobs;
+  if (keyword && keyword !== 'software engineer') {
+    filteredJobs = mockJobs.filter(job => 
+      job.title.toLowerCase().includes(keyword.toLowerCase()) ||
+      job.description.toLowerCase().includes(keyword.toLowerCase())
+    );
+  }
+
+  // Pagination
+  const pageSize = 10;
+  const startIndex = parseInt(page) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
+  res.json({
+    jobs: paginatedJobs,
+    page_count: Math.ceil(filteredJobs.length / pageSize),
+    total_jobs: filteredJobs.length,
+    source: 'Mock Data'
+  });
 });
 
-app.post('/send-feedback', (req, res) => {
-  res.json({ message: 'Feedback endpoint - Node.js backend working' });
+// Job details endpoint
+app.get('/api/jobs/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  // Return a mock job detail
+  res.json({
+    id: parseInt(jobId),
+    title: 'Software Engineer',
+    company: 'TechCorp Inc.',
+    location: 'San Francisco, CA',
+    salary: '$120,000 - $150,000',
+    description: 'Full job description here...',
+    how_to_apply: 'Please visit the company\'s careers page to apply for this position.',
+    company_url: 'https://example.com/careers'
+  });
 });
 
 // Get user analyses endpoint
@@ -680,20 +751,21 @@ app.get('/download-resume/:id', (req, res) => {
   }
 });
 
-app.get('/job-skills', (req, res) => {
-  res.json({ message: 'Job skills endpoint - Node.js backend working' });
-});
-
-app.post('/store-analysis', (req, res) => {
-  res.json({ message: 'Store analysis endpoint - Node.js backend working' });
+// Placeholder endpoints for other functionality
+app.post('/build-resume', (req, res) => {
+  res.json({ message: 'Build resume endpoint - Node.js backend working' });
 });
 
 app.post('/send-feedback', (req, res) => {
   res.json({ message: 'Feedback endpoint - Node.js backend working' });
 });
 
-app.post('/build-resume', (req, res) => {
-  res.json({ message: 'Build resume endpoint - Node.js backend working' });
+app.get('/job-skills', (req, res) => {
+  res.json({ message: 'Job skills endpoint - Node.js backend working' });
+});
+
+app.post('/store-analysis', (req, res) => {
+  res.json({ message: 'Store analysis endpoint - Node.js backend working' });
 });
 
 // Export for Vercel
