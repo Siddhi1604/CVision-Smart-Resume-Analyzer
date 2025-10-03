@@ -20,16 +20,11 @@ export const JobRolesProvider = ({ children }) => {
   useEffect(() => {
     const fetchJobRoles = async () => {
       try {
-        console.log('Fetching job categories and roles...');
-        
         // Fetch categories explicitly to populate the dropdown
         const [catsRes, rolesRes] = await Promise.all([
           axios.get('/job-categories'),
           axios.get('/job-roles'), // nested category -> role -> { description, required_skills }
         ]);
-
-        console.log('Categories response:', catsRes.data);
-        console.log('Roles response:', rolesRes.data);
 
         if (Array.isArray(catsRes.data?.categories)) {
           setCategories(catsRes.data.categories);
@@ -45,8 +40,6 @@ export const JobRolesProvider = ({ children }) => {
               ])
             )
           : data;
-        
-        console.log('Processed job roles:', nested);
         setJobRoles(nested || {});
       } catch (err) {
         console.error('Error fetching job roles:', err);

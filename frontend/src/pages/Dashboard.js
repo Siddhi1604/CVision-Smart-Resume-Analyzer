@@ -32,18 +32,11 @@ import {
       
       // Fetch real analyses from backend (current user and fallback legacy default_user)
       const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
-      console.log('Fetching data for user:', currentUserId);
-      
       const [respPrimary, respFallback] = await Promise.all([
         axios.get(`/user-analyses/${currentUserId}`),
         axios.get(`/user-analyses/default_user`).catch(() => ({ data: { analyses: [] } }))
       ]);
-      
-      console.log('Primary response:', respPrimary.data);
-      console.log('Fallback response:', respFallback?.data);
-      
       const analyses = [...(respPrimary.data.analyses || []), ...(respFallback?.data?.analyses || [])];
-      console.log('Combined analyses:', analyses);
       
       // Transform backend data to frontend format
       const transformedAnalyses = analyses.map((analysis, index) => ({

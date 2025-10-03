@@ -1,7 +1,186 @@
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
 
 const app = express();
+
+// In-memory storage for resume analyses (Vercel-compatible)
+let resumeAnalysesStorage = [];
+
+// Load existing analyses from file if available (Vercel temp directory)
+const loadAnalysesFromFile = () => {
+  try {
+    const data = fs.readFileSync('/tmp/analyses.json', 'utf8');
+    resumeAnalysesStorage = JSON.parse(data);
+  } catch (error) {
+    console.log('No existing analyses file found, starting fresh');
+    resumeAnalysesStorage = [];
+  }
+};
+
+// Save analyses to file (Vercel temp directory)
+const saveAnalysesToFile = () => {
+  try {
+    fs.writeFileSync('/tmp/analyses.json', JSON.stringify(resumeAnalysesStorage, null, 2));
+  } catch (error) {
+    console.error('Failed to save analyses:', error);
+  }
+};
+
+// Initialize storage
+loadAnalysesFromFile();
+
+// Add some sample data for testing if storage is empty
+if (resumeAnalysesStorage.length === 0) {
+  const sampleAnalysis = {
+    id: 'sample-1',
+    user_id: 'default_user',
+    resume_name: 'Sample Resume.pdf',
+    job_category: 'Technology',
+    job_role: 'Software Engineer',
+    analysis_type: 'standard',
+    analysis_result: {
+      ats_score: 85,
+      keyword_match: { score: 80 },
+      missing_skills: ['docker', 'kubernetes'],
+      format_score: 90,
+      section_score: 85,
+      suggestions: [
+        'Include relevant skills: docker, kubernetes',
+        'Add more role-specific keywords across Skills and Experience sections'
+      ],
+      contact: {
+        email: true,
+        phone: true,
+        linkedin: true,
+        github: false
+      },
+      metrics: {
+        word_count: 450,
+        reading_time_minutes: 3
+      }
+    },
+    created_at: new Date().toISOString(),
+    file_name: 'Sample Resume.pdf',
+    file_path: null
+  };
+  
+  resumeAnalysesStorage.push(sampleAnalysis);
+  saveAnalysesToFile();
+}
+
+// Configure multer for file uploads (Vercel-compatible)
+const upload = multer({ 
+  dest: '/tmp/uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Job roles data
+const ROLES_DATASET = {
+  'Technology': {
+    'Frontend Developer': [
+      'javascript', 'typescript', 'react', 'next.js', 'html', 'css', 
+      'tailwind', 'redux', 'testing-library', 'cypress', 'webpack', 
+      'vite', 'accessibility', 'responsive design', 'git'
+    ],
+    'Backend Developer': [
+      'node.js', 'express', 'python', 'fastapi', 'java', 'spring', 
+      'rest', 'graphql', 'sql', 'postgresql', 'mysql', 'nosql', 
+      'mongodb', 'docker', 'kubernetes', 'aws', 'auth', 'jwt', 
+      'caching', 'redis', 'message queues', 'git', 'testing'
+    ],
+    'Software Engineer': [
+      'data structures', 'algorithms', 'python', 'java', 'javascript', 
+      'git', 'sql', 'rest', 'system design', 'docker', 'cloud', 
+      'aws', 'testing', 'ci/cd', 'design patterns', 'linux'
+    ],
+    'Data Scientist': [
+      'python', 'pandas', 'numpy', 'scikit-learn', 'machine learning', 
+      'statistics', 'sql', 'matplotlib', 'seaborn', 'feature engineering', 
+      'model evaluation', 'notebooks', 'deployment', 'mlflow', 
+      'tensorflow', 'pytorch', 'data visualization'
+    ]
+  }
+};
+
+// Resume analysis functions
+const extractTextFromPDF = async (filePath) => {
+  try {
+    const dataBuffer = fs.readFileSync(filePath);
+    const data = await pdfParse(dataBuffer);
+    return data.text;
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    return '';
+  }
+};
+
+const extractTextFromDOCX = async (filePath) => {
+  try {
+    const result = await mammoth.extractRawText({ path: filePath });
+    return result.value;
+  } catch (error) {
+    console.error('Error extracting text from DOCX:', error);
+    return '';
+  }
+};
+
+const extractTextFromFile = async (filePath, mimeType) => {
+  if (mimeType === 'application/pdf') {
+    return await extractTextFromPDF(filePath);
+  } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    return await extractTextFromDOCX(filePath);
+  }
+  return '';
+};
+
+const scoreKeywordMatch = (resumeText, requiredSkills) => {
+  const resumeLower = resumeText.toLowerCase();
+  const matchedSkills = requiredSkills.filter(skill => 
+    resumeLower.includes(skill.toLowerCase())
+  );
+  return Math.round((matchedSkills.length / requiredSkills.length) * 100);
+};
+
+const scoreSections = (resumeText) => {
+  const sections = ['summary', 'experience', 'education', 'skills', 'contact'];
+  const resumeLower = resumeText.toLowerCase();
+  const foundSections = sections.filter(section => 
+    resumeLower.includes(section) || resumeLower.includes(section + 's')
+  );
+  return Math.round((foundSections.length / sections.length) * 100);
+};
+
+const scoreFormat = (resumeText, fileSize) => {
+  let score = 50; // Base score
+  
+  // Check for bullet points
+  if (resumeText.includes('•') || resumeText.includes('-') || resumeText.includes('*')) {
+    score += 20;
+  }
+  
+  // Check for proper length (not too short, not too long)
+  const wordCount = resumeText.split(/\s+/).length;
+  if (wordCount >= 200 && wordCount <= 800) {
+    score += 20;
+  } else if (wordCount < 100) {
+    score -= 20;
+  }
+  
+  // Check for contact information
+  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+  const phoneRegex = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/;
+  
+  if (emailRegex.test(resumeText)) score += 5;
+  if (phoneRegex.test(resumeText)) score += 5;
+  
+  return Math.min(100, Math.max(0, score));
+};
 
 // Adzuna API function
 async function fetchAdzunaJobs(page, keyword, location, jobType, appId, apiKey) {
@@ -71,17 +250,12 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health endpoint
 app.get('/health', (req, res) => {
-  console.log('Health endpoint called');
-  res.json({ 
-    status: 'ok', 
-    message: 'Backend is working!',
-    timestamp: new Date().toISOString(),
-    analysesCount: resumeAnalysesStorage.length
-  });
+  res.json({ status: 'ok', message: 'Backend is working!' });
 });
 
 // Job categories endpoint
@@ -95,38 +269,20 @@ app.get('/job-roles', (req, res) => {
   const roles = {
     'Technology': {
       'Frontend Developer': {
-        description: 'Develop user-facing web applications and interfaces',
-        required_skills: [
-          'javascript', 'typescript', 'react', 'next.js', 'html', 'css', 
-          'tailwind', 'redux', 'testing-library', 'cypress', 'webpack', 
-          'vite', 'accessibility', 'responsive design', 'git'
-        ]
+        description: 'Build user-facing web applications and interfaces',
+        required_skills: ROLES_DATASET['Technology']['Frontend Developer']
       },
       'Backend Developer': {
-        description: 'Build server-side applications and APIs',
-        required_skills: [
-          'node.js', 'express', 'python', 'fastapi', 'java', 'spring', 
-          'rest', 'graphql', 'sql', 'postgresql', 'mysql', 'nosql', 
-          'mongodb', 'docker', 'kubernetes', 'aws', 'auth', 'jwt', 
-          'caching', 'redis', 'message queues', 'git', 'testing'
-        ]
+        description: 'Develop server-side applications and APIs',
+        required_skills: ROLES_DATASET['Technology']['Backend Developer']
       },
       'Software Engineer': {
-        description: 'Design and develop software applications and systems',
-        required_skills: [
-          'data structures', 'algorithms', 'python', 'java', 'javascript', 
-          'git', 'sql', 'rest', 'system design', 'docker', 'cloud', 
-          'aws', 'testing', 'ci/cd', 'design patterns', 'linux'
-        ]
+        description: 'Design and develop software solutions',
+        required_skills: ROLES_DATASET['Technology']['Software Engineer']
       },
       'Data Scientist': {
-        description: 'Analyze complex data to extract insights and build models',
-        required_skills: [
-          'python', 'pandas', 'numpy', 'scikit-learn', 'machine learning', 
-          'statistics', 'sql', 'matplotlib', 'seaborn', 'feature engineering', 
-          'model evaluation', 'notebooks', 'deployment', 'mlflow', 
-          'tensorflow', 'pytorch', 'data visualization'
-        ]
+        description: 'Analyze data and build machine learning models',
+        required_skills: ROLES_DATASET['Technology']['Data Scientist']
       }
     }
   };
@@ -252,516 +408,292 @@ app.get('/api/jobs/:jobId', (req, res) => {
   });
 });
 
-// In-memory storage for resume analyses (in production, use a database)
-let resumeAnalysesStorage = [];
-
-// Load existing analyses from file if available
-const fs = require('fs');
-const path = require('path');
-
-try {
-  // Try multiple possible paths for the analyses file
-  const possiblePaths = [
-    path.join(__dirname, '../storage/analyses.json'),
-    path.join(__dirname, '../../backend/storage/analyses.json'),
-    path.join(process.cwd(), 'backend/storage/analyses.json'),
-    path.join(process.cwd(), 'storage/analyses.json')
-  ];
-  
-  let analysesPath = null;
-  for (const testPath of possiblePaths) {
-    if (fs.existsSync(testPath)) {
-      analysesPath = testPath;
-      break;
-    }
-  }
-  
-  if (analysesPath) {
-    const data = fs.readFileSync(analysesPath, 'utf8');
-    resumeAnalysesStorage = JSON.parse(data);
-    console.log(`Loaded ${resumeAnalysesStorage.length} existing analyses from ${analysesPath}`);
-  } else {
-    console.log('No existing analyses file found, starting with empty storage');
-    resumeAnalysesStorage = [];
-  }
-} catch (error) {
-  console.log('Could not load existing analyses:', error.message);
-  resumeAnalysesStorage = [];
-}
-
-// Save analyses to file
-function saveAnalysesToFile() {
-  try {
-    // Try to find the existing analyses file first
-    const possiblePaths = [
-      path.join(__dirname, '../storage/analyses.json'),
-      path.join(__dirname, '../../backend/storage/analyses.json'),
-      path.join(process.cwd(), 'backend/storage/analyses.json'),
-      path.join(process.cwd(), 'storage/analyses.json')
-    ];
-    
-    let analysesPath = null;
-    for (const testPath of possiblePaths) {
-      if (fs.existsSync(testPath)) {
-        analysesPath = testPath;
-        break;
-      }
-    }
-    
-    // If no existing file found, use the first path and create directory
-    if (!analysesPath) {
-      analysesPath = path.join(__dirname, '../storage/analyses.json');
-      const storageDir = path.dirname(analysesPath);
-      if (!fs.existsSync(storageDir)) {
-        fs.mkdirSync(storageDir, { recursive: true });
-      }
-    }
-    
-    fs.writeFileSync(analysesPath, JSON.stringify(resumeAnalysesStorage, null, 2));
-    console.log(`Saved ${resumeAnalysesStorage.length} analyses to ${analysesPath}`);
-  } catch (error) {
-    console.log('Could not save analyses:', error.message);
-  }
-}
-
-// Job roles dataset
-const jobRolesDataset = {
-  "Technology": {
-    "Frontend Developer": [
-      "javascript", "typescript", "react", "next.js", "html", "css", 
-      "tailwind", "redux", "testing-library", "cypress", "webpack", 
-      "vite", "accessibility", "responsive design", "git"
-    ],
-    "Backend Developer": [
-      "node.js", "express", "python", "fastapi", "java", "spring", 
-      "rest", "graphql", "sql", "postgresql", "mysql", "nosql", 
-      "mongodb", "docker", "kubernetes", "aws", "auth", "jwt", 
-      "caching", "redis", "message queues", "git", "testing"
-    ],
-    "Software Engineer": [
-      "data structures", "algorithms", "python", "java", "javascript", 
-      "git", "sql", "rest", "system design", "docker", "cloud", 
-      "aws", "testing", "ci/cd", "design patterns", "linux"
-    ],
-    "Data Scientist": [
-      "python", "pandas", "numpy", "scikit-learn", "machine learning", 
-      "statistics", "sql", "matplotlib", "seaborn", "feature engineering", 
-      "model evaluation", "notebooks", "deployment", "mlflow", 
-      "tensorflow", "pytorch", "data visualization"
-    ]
-  }
-};
-
-// Enhanced resume analysis function
-function analyzeResume(resumeText, jobCategory, jobRole) {
-  const skills = jobRolesDataset[jobCategory]?.[jobRole] || [];
-  
-  // Enhanced keyword matching with synonyms and variations
-  const resumeLower = resumeText.toLowerCase();
-  const matchedSkills = [];
-  const missingSkills = [];
-  
-  skills.forEach(skill => {
-    const skillLower = skill.toLowerCase();
-    let found = false;
-    
-    // Direct match
-    if (resumeLower.includes(skillLower)) {
-      matchedSkills.push(skill);
-      found = true;
-    }
-    
-    // Check for common variations and synonyms
-    const variations = {
-      'javascript': ['js', 'nodejs', 'node.js', 'ecmascript'],
-      'typescript': ['ts'],
-      'python': ['py'],
-      'react': ['reactjs', 'react.js'],
-      'node.js': ['nodejs', 'node'],
-      'sql': ['postgresql', 'mysql', 'database'],
-      'docker': ['containerization'],
-      'kubernetes': ['k8s'],
-      'aws': ['amazon web services', 'cloud'],
-      'git': ['version control', 'github', 'gitlab'],
-      'testing': ['unit testing', 'integration testing', 'test automation'],
-      'ci/cd': ['continuous integration', 'continuous deployment', 'devops'],
-      'rest': ['restful', 'api'],
-      'machine learning': ['ml', 'ai', 'artificial intelligence'],
-      'data science': ['data analysis', 'analytics']
-    };
-    
-    if (!found && variations[skillLower]) {
-      for (const variation of variations[skillLower]) {
-        if (resumeLower.includes(variation)) {
-          matchedSkills.push(skill);
-          found = true;
-          break;
-        }
-      }
-    }
-    
-    if (!found) {
-      missingSkills.push(skill);
-    }
-  });
-  
-  const keywordMatchScore = skills.length > 0 ? 
-    Math.round((matchedSkills.length / skills.length) * 100) : 0;
-  
-  // Enhanced format scoring
-  const wordCount = resumeText.split(/\s+/).length;
-  let formatScore = 100;
-  
-  // Word count penalties
-  if (wordCount < 200) formatScore -= 25;
-  else if (wordCount < 300) formatScore -= 15;
-  else if (wordCount > 2000) formatScore -= 20;
-  else if (wordCount > 3000) formatScore -= 30;
-  
-  // Formatting penalties
-  if (!resumeText.includes('•') && !resumeText.includes('-') && !resumeText.includes('*')) formatScore -= 15;
-  if (!resumeText.includes('@') && !resumeText.includes('email')) formatScore -= 10;
-  if (!resumeText.includes('experience') && !resumeText.includes('work')) formatScore -= 10;
-  
-  // Enhanced section scoring
-  const sections = [
-    { name: 'summary', keywords: ['summary', 'objective', 'profile', 'about'] },
-    { name: 'experience', keywords: ['experience', 'work', 'employment', 'career'] },
-    { name: 'education', keywords: ['education', 'degree', 'university', 'college'] },
-    { name: 'skills', keywords: ['skills', 'technical', 'technologies', 'tools'] }
-  ];
-  
-  const foundSections = sections.filter(section => 
-    section.keywords.some(keyword => resumeLower.includes(keyword))
-  );
-  const sectionScore = Math.round((foundSections.length / sections.length) * 100);
-  
-  // Calculate ATS score with weighted components
-  const atsScore = Math.round(
-    0.4 * keywordMatchScore + 
-    0.3 * sectionScore + 
-    0.3 * formatScore
-  );
-  
-  // Enhanced suggestions generation
-  const suggestions = [];
-  
-  if (missingSkills.length > 0) {
-    const topMissing = missingSkills.slice(0, 5);
-    suggestions.push(`Consider adding these relevant skills: ${topMissing.join(', ')}`);
-  }
-  
-  if (keywordMatchScore < 60) {
-    suggestions.push('Add more role-specific keywords throughout your resume, especially in the Skills and Experience sections.');
-  } else if (keywordMatchScore < 80) {
-    suggestions.push('Good keyword coverage! Consider adding a few more relevant technical terms.');
-  }
-  
-  if (sectionScore < 60) {
-    suggestions.push('Ensure you have clearly labeled sections for Summary, Skills, Experience, and Education.');
-  }
-  
-  if (formatScore < 70) {
-    suggestions.push('Improve formatting by using bullet points, consistent spacing, and ensuring all text is selectable.');
-  }
-  
-  if (wordCount < 250) {
-    suggestions.push('Consider adding more detail to your experience and projects to reach 300-500 words.');
-  } else if (wordCount > 2000) {
-    suggestions.push('Your resume might be too long. Consider condensing to 1-2 pages for better ATS performance.');
-  }
-  
-  // Contact information suggestions
-  const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resumeText);
-  const hasPhone = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resumeText);
-  const hasLinkedIn = resumeLower.includes('linkedin');
-  const hasGithub = resumeLower.includes('github');
-  
-  if (!hasEmail) suggestions.push('Add a professional email address in your contact information.');
-  if (!hasPhone) suggestions.push('Include a phone number for better contact options.');
-  if (!hasLinkedIn && !hasGithub) suggestions.push('Consider adding LinkedIn or GitHub profile links.');
-  
-  return {
-    ats_score: atsScore,
-    keyword_match: { score: keywordMatchScore },
-    missing_skills: missingSkills,
-    format_score: formatScore,
-    section_score: sectionScore,
-    suggestions: suggestions,
-    jd_match_score: null,
-    contact: {
-      has_email: hasEmail,
-      has_phone: hasPhone,
-      has_linkedin: hasLinkedIn,
-      has_github: hasGithub
-    },
-    metrics: {
-      word_count: wordCount,
-      reading_time_minutes: Math.max(1, Math.round(wordCount / 200))
-    }
-  };
-}
-
 // Resume analysis endpoint
-app.post('/analyze-resume', (req, res) => {
+app.post('/analyze-resume', upload.single('file'), async (req, res) => {
   try {
-    console.log('Analyze resume endpoint called with:', req.body);
-    const { job_category, job_role, user_id = 'default_user' } = req.body;
+    const { job_category, job_role, user_id = 'default_user', text } = req.body;
     
     if (!job_category || !job_role) {
       return res.status(400).json({ error: 'Job category and role are required' });
     }
-    
-    // Get resume text from request or use a sample for demonstration
-    let resumeText = req.body.resume_text || req.body.text;
-    
-    if (!resumeText) {
-      // Use a more realistic sample resume for demonstration
-      resumeText = `
-        John Smith
-        Software Engineer
-        john.smith@email.com | (555) 123-4567 | linkedin.com/in/johnsmith
-        
-        SUMMARY
-        Experienced software engineer with 5+ years of experience in full-stack web development. 
-        Proficient in JavaScript, Python, React, and Node.js. Strong background in building 
-        scalable applications and working with databases.
-        
-        TECHNICAL SKILLS
-        • Programming Languages: JavaScript, Python, Java, SQL
-        • Frameworks: React, Node.js, Express, Django
-        • Databases: PostgreSQL, MongoDB, MySQL
-        • Tools: Git, Docker, AWS, Linux
-        
-        PROFESSIONAL EXPERIENCE
-        
-        Senior Software Engineer | TechCorp Inc. | 2020 - Present
-        • Developed and maintained web applications using React and Node.js
-        • Implemented RESTful APIs and database schemas
-        • Collaborated with cross-functional teams to deliver high-quality software
-        • Improved application performance by 30% through code optimization
-        
-        Software Engineer | StartupXYZ | 2018 - 2020
-        • Built responsive web interfaces using React and JavaScript
-        • Worked with PostgreSQL and MongoDB databases
-        • Participated in agile development processes
-        • Contributed to open-source projects
-        
-        EDUCATION
-        Bachelor of Science in Computer Science
-        University of Technology | 2014 - 2018
-        
-        PROJECTS
-        • E-commerce Platform: Built a full-stack e-commerce application using React and Node.js
-        • Task Management App: Developed a collaborative task management tool with real-time updates
-        • Data Visualization Dashboard: Created interactive dashboards using Python and D3.js
-      `;
+
+    let resumeText = '';
+    let filePath = null;
+    let fileName = 'Text Resume';
+
+    if (req.file) {
+      filePath = req.file.path;
+      fileName = req.file.originalname;
+      resumeText = await extractTextFromFile(filePath, req.file.mimetype);
+    } else if (text) {
+      resumeText = text;
+    } else {
+      return res.status(400).json({ error: 'Either file or text is required' });
     }
+
+    if (!resumeText.trim()) {
+      return res.status(400).json({ error: 'Could not extract text from the provided content' });
+    }
+
+    // Get required skills for the job role
+    const requiredSkills = ROLES_DATASET[job_category]?.[job_role] || [];
     
-    const analysis = analyzeResume(resumeText, job_category, job_role);
-    
+    // Calculate scores
+    const keywordMatchScore = scoreKeywordMatch(resumeText, requiredSkills);
+    const sectionScore = scoreSections(resumeText);
+    const formatScore = scoreFormat(resumeText, req.file?.size || 0);
+    const atsScore = Math.round(0.5 * keywordMatchScore + 0.25 * sectionScore + 0.25 * formatScore);
+
+    // Generate suggestions
+    const suggestions = [];
+    const missingSkills = requiredSkills.filter(skill => 
+      !resumeText.toLowerCase().includes(skill.toLowerCase())
+    );
+
+    if (missingSkills.length > 0) {
+      suggestions.push(`Include relevant skills: ${missingSkills.slice(0, 5).join(', ')}`);
+    }
+    if (keywordMatchScore < 70) {
+      suggestions.push('Add more role-specific keywords across Skills and Experience sections');
+    }
+    if (sectionScore < 70) {
+      suggestions.push('Ensure key sections like Summary, Skills, Experience, and Education are present');
+    }
+    if (formatScore < 80) {
+      suggestions.push('Use bullet points and ensure the document text is selectable');
+    }
+
+    // Check for contact information
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+    const phoneRegex = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/;
+    const hasEmail = emailRegex.test(resumeText);
+    const hasPhone = phoneRegex.test(resumeText);
+
+    const contact = {
+      email: hasEmail,
+      phone: hasPhone,
+      linkedin: resumeText.toLowerCase().includes('linkedin'),
+      github: resumeText.toLowerCase().includes('github')
+    };
+
+    // Calculate word count and reading time
+    const wordCount = resumeText.split(/\s+/).length;
+    const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
+
+    const result = {
+      ats_score: atsScore,
+      keyword_match: { score: keywordMatchScore },
+      missing_skills: missingSkills.slice(0, 10),
+      format_score: formatScore,
+      section_score: sectionScore,
+      suggestions: suggestions,
+      contact: contact,
+      metrics: {
+        word_count: wordCount,
+        reading_time_minutes: readingTimeMinutes
+      }
+    };
+
     // Store the analysis
+    const analysisId = uuidv4();
     const analysisData = {
-      id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+      id: analysisId,
       user_id: user_id,
-      resume_name: resumeText.includes('John Smith') ? 'Sample Resume' : 'Custom Resume',
+      resume_name: fileName,
       job_category: job_category,
       job_role: job_role,
       analysis_type: 'standard',
-      analysis_result: analysis,
+      analysis_result: result,
       created_at: new Date().toISOString(),
-      file_name: null,
-      file_path: null,
-      file_mime: null
+      file_name: fileName,
+      file_path: filePath
     };
-    
+
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
-    
-    console.log(`Analysis stored. Total analyses: ${resumeAnalysesStorage.length}`);
-    res.json(analysis);
+
+    res.json(result);
+
   } catch (error) {
     console.error('Analysis error:', error);
-    res.status(500).json({ error: 'Analysis failed' });
+    res.status(500).json({ error: 'Internal server error during analysis' });
   }
 });
 
 // AI resume analysis endpoint
-app.post('/ai-analyze-resume', (req, res) => {
+app.post('/ai-analyze-resume', upload.single('file'), async (req, res) => {
   try {
-    console.log('AI analyze resume endpoint called with:', req.body);
-    const { job_category, job_role, user_id = 'default_user' } = req.body;
+    const { job_category, job_role, user_id = 'default_user', custom_job_description, text } = req.body;
     
     if (!job_category || !job_role) {
       return res.status(400).json({ error: 'Job category and role are required' });
     }
-    
-    // Get resume text from request or use a sample for demonstration
-    let resumeText = req.body.resume_text || req.body.text;
-    
-    if (!resumeText) {
-      // Use a more realistic sample resume for demonstration
-      resumeText = `
-        John Smith
-        Software Engineer
-        john.smith@email.com | (555) 123-4567 | linkedin.com/in/johnsmith
-        
-        SUMMARY
-        Experienced software engineer with 5+ years of experience in full-stack web development. 
-        Proficient in JavaScript, Python, React, and Node.js. Strong background in building 
-        scalable applications and working with databases.
-        
-        TECHNICAL SKILLS
-        • Programming Languages: JavaScript, Python, Java, SQL
-        • Frameworks: React, Node.js, Express, Django
-        • Databases: PostgreSQL, MongoDB, MySQL
-        • Tools: Git, Docker, AWS, Linux
-        
-        PROFESSIONAL EXPERIENCE
-        
-        Senior Software Engineer | TechCorp Inc. | 2020 - Present
-        • Developed and maintained web applications using React and Node.js
-        • Implemented RESTful APIs and database schemas
-        • Collaborated with cross-functional teams to deliver high-quality software
-        • Improved application performance by 30% through code optimization
-        
-        Software Engineer | StartupXYZ | 2018 - 2020
-        • Built responsive web interfaces using React and JavaScript
-        • Worked with PostgreSQL and MongoDB databases
-        • Participated in agile development processes
-        • Contributed to open-source projects
-        
-        EDUCATION
-        Bachelor of Science in Computer Science
-        University of Technology | 2014 - 2018
-        
-        PROJECTS
-        • E-commerce Platform: Built a full-stack e-commerce application using React and Node.js
-        • Task Management App: Developed a collaborative task management tool with real-time updates
-        • Data Visualization Dashboard: Created interactive dashboards using Python and D3.js
-      `;
+
+    let resumeText = '';
+    let filePath = null;
+    let fileName = 'Text Resume';
+
+    if (req.file) {
+      filePath = req.file.path;
+      fileName = req.file.originalname;
+      resumeText = await extractTextFromFile(filePath, req.file.mimetype);
+    } else if (text) {
+      resumeText = text;
+    } else {
+      return res.status(400).json({ error: 'Either file or text is required' });
     }
+
+    if (!resumeText.trim()) {
+      return res.status(400).json({ error: 'Could not extract text from the provided content' });
+    }
+
+    // Get required skills for the job role
+    const requiredSkills = ROLES_DATASET[job_category]?.[job_role] || [];
     
-    const analysis = analyzeResume(resumeText, job_category, job_role);
-    
+    // Calculate scores (same as standard analysis for now)
+    const keywordMatchScore = scoreKeywordMatch(resumeText, requiredSkills);
+    const sectionScore = scoreSections(resumeText);
+    const formatScore = scoreFormat(resumeText, req.file?.size || 0);
+    const atsScore = Math.round(0.5 * keywordMatchScore + 0.25 * sectionScore + 0.25 * formatScore);
+
+    // Enhanced suggestions for AI analysis
+    const suggestions = [];
+    const missingSkills = requiredSkills.filter(skill => 
+      !resumeText.toLowerCase().includes(skill.toLowerCase())
+    );
+
+    if (missingSkills.length > 0) {
+      suggestions.push(`Include relevant skills: ${missingSkills.slice(0, 5).join(', ')}`);
+    }
+    if (keywordMatchScore < 70) {
+      suggestions.push('Add more role-specific keywords across Skills and Experience sections');
+    }
+    if (sectionScore < 70) {
+      suggestions.push('Ensure key sections like Summary, Skills, Experience, and Education are present');
+    }
+    if (formatScore < 80) {
+      suggestions.push('Use bullet points and ensure the document text is selectable');
+    }
+    if (custom_job_description) {
+      suggestions.push('Tailor quantified achievements to the provided job description');
+    }
+
+    // Check for contact information
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+    const phoneRegex = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/;
+    const hasEmail = emailRegex.test(resumeText);
+    const hasPhone = phoneRegex.test(resumeText);
+
+    const contact = {
+      email: hasEmail,
+      phone: hasPhone,
+      linkedin: resumeText.toLowerCase().includes('linkedin'),
+      github: resumeText.toLowerCase().includes('github')
+    };
+
+    // Calculate word count and reading time
+    const wordCount = resumeText.split(/\s+/).length;
+    const readingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
+
+    const result = {
+      ats_score: atsScore,
+      keyword_match: { score: keywordMatchScore },
+      missing_skills: missingSkills.slice(0, 10),
+      format_score: formatScore,
+      section_score: sectionScore,
+      suggestions: suggestions,
+      contact: contact,
+      metrics: {
+        word_count: wordCount,
+        reading_time_minutes: readingTimeMinutes
+      }
+    };
+
     // Store the analysis
+    const analysisId = uuidv4();
     const analysisData = {
-      id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
+      id: analysisId,
       user_id: user_id,
-      resume_name: resumeText.includes('John Smith') ? 'Sample Resume' : 'Custom Resume',
+      resume_name: fileName,
       job_category: job_category,
       job_role: job_role,
       analysis_type: 'ai',
-      analysis_result: analysis,
+      analysis_result: result,
       created_at: new Date().toISOString(),
-      file_name: null,
-      file_path: null,
-      file_mime: null
+      file_name: fileName,
+      file_path: filePath
     };
-    
+
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
-    
-    console.log(`AI Analysis stored. Total analyses: ${resumeAnalysesStorage.length}`);
-    res.json(analysis);
+
+    res.json(result);
+
   } catch (error) {
     console.error('AI Analysis error:', error);
-    res.status(500).json({ error: 'AI Analysis failed' });
+    res.status(500).json({ error: 'Internal server error during AI analysis' });
   }
 });
 
-// User analyses endpoint
-app.get('/user-analyses/:userId', (req, res) => {
-  try {
-    console.log('User analyses endpoint called for user:', req.params.userId);
-    const { userId } = req.params;
-    const userAnalyses = resumeAnalysesStorage.filter(analysis => 
-      analysis.user_id === userId
-    );
-    
-    // Sort by created_at date (newest first)
-    userAnalyses.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    console.log(`Found ${userAnalyses.length} analyses for user ${userId}`);
-    console.log('Total analyses in storage:', resumeAnalysesStorage.length);
-    
-    res.json({ analyses: userAnalyses });
-  } catch (error) {
-    console.error('Error fetching user analyses:', error);
-    res.status(500).json({ error: 'Failed to fetch analyses' });
-  }
-});
-
-// Download resume endpoint
-app.get('/download-resume/:analysisId', (req, res) => {
-  try {
-    const { analysisId } = req.params;
-    const analysis = resumeAnalysesStorage.find(a => a.id === analysisId);
-    
-    if (!analysis) {
-      return res.status(404).json({ error: 'Analysis not found' });
-    }
-    
-    if (!analysis.file_path) {
-      return res.status(404).json({ error: 'No file available for download' });
-    }
-    
-    // For now, return a placeholder since we don't have file handling
-    res.json({ message: 'File download not implemented in Node.js backend' });
-  } catch (error) {
-    console.error('Download error:', error);
-    res.status(500).json({ error: 'Download failed' });
-  }
-});
-
-// Job skills endpoint
-app.get('/job-skills', (req, res) => {
-  try {
-    const { category, role } = req.query;
-    
-    if (!category || !role) {
-      return res.status(400).json({ error: 'Category and role are required' });
-    }
-    
-    const skills = jobRolesDataset[category]?.[role];
-    if (!skills) {
-      return res.status(404).json({ error: 'Category or role not found' });
-    }
-    
-    res.json({ category, role, skills });
-  } catch (error) {
-    console.error('Job skills error:', error);
-    res.status(500).json({ error: 'Failed to fetch job skills' });
-  }
-});
-
-// Store analysis endpoint
-app.post('/store-analysis', (req, res) => {
-  try {
-    const analysisData = {
-      id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
-      ...req.body,
-      created_at: new Date().toISOString()
-    };
-    
-    resumeAnalysesStorage.push(analysisData);
-    saveAnalysesToFile();
-    
-    res.json({ id: analysisData.id, message: 'Analysis stored successfully' });
-  } catch (error) {
-    console.error('Store analysis error:', error);
-    res.status(500).json({ error: 'Failed to store analysis' });
-  }
-});
-
-// Build resume endpoint (placeholder)
 app.post('/build-resume', (req, res) => {
   res.json({ message: 'Build resume endpoint - Node.js backend working' });
 });
 
-// Send feedback endpoint (placeholder)
 app.post('/send-feedback', (req, res) => {
   res.json({ message: 'Feedback endpoint - Node.js backend working' });
+});
+
+// Get user analyses endpoint
+app.get('/user-analyses/:id', (req, res) => {
+  try {
+    const userId = req.params.id;
+    const userAnalyses = resumeAnalysesStorage.filter(analysis => analysis.user_id === userId);
+    
+    // Sort by created_at date (newest first)
+    userAnalyses.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    res.json({ analyses: userAnalyses });
+  } catch (error) {
+    console.error('Error fetching user analyses:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Download resume endpoint
+app.get('/download-resume/:id', (req, res) => {
+  try {
+    const analysisId = req.params.id;
+    const analysis = resumeAnalysesStorage.find(a => a.id === analysisId);
+    
+    if (!analysis || !analysis.file_path) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    if (!fs.existsSync(analysis.file_path)) {
+      return res.status(404).json({ error: 'Resume file not found' });
+    }
+
+    res.download(analysis.file_path, analysis.file_name || 'resume.pdf');
+  } catch (error) {
+    console.error('Error downloading resume:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/job-skills', (req, res) => {
+  res.json({ message: 'Job skills endpoint - Node.js backend working' });
+});
+
+app.post('/store-analysis', (req, res) => {
+  res.json({ message: 'Store analysis endpoint - Node.js backend working' });
+});
+
+app.post('/send-feedback', (req, res) => {
+  res.json({ message: 'Feedback endpoint - Node.js backend working' });
+});
+
+app.post('/build-resume', (req, res) => {
+  res.json({ message: 'Build resume endpoint - Node.js backend working' });
 });
 
 // Export for Vercel
