@@ -17,7 +17,7 @@ def handler(event, context):
         "body": '{"status": "ok", "message": "Backend is working!"}'
     }
 
-# Try to import the full app with Vercel-compatible configuration
+# Try to import the full app without lifespan parameter (simplest approach)
 try:
     print("Attempting to import FastAPI app...")
     from main import app
@@ -26,14 +26,14 @@ try:
     from mangum import Mangum
     print("Mangum imported successfully")
     
-    # Create handler with Vercel-compatible settings
-    handler = Mangum(app, lifespan=None)
-    print("Mangum handler created successfully with lifespan=None")
+    # Create handler without lifespan parameter
+    handler = Mangum(app)
+    print("Mangum handler created successfully without lifespan")
     
 except Exception as e:
     print(f"Error during import: {str(e)}")
     import traceback
     traceback.print_exc()
     
-    # Keep the simple handler if import<｜tool▁call▁begin｜>
+    # Keep the simple handler if import fails
     pass
