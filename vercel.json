@@ -22,51 +22,51 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/health",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/analyze-resume",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/ai-analyze-resume",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/user-analyses/(.*)",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/download-resume/(.*)",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/job-skills",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/store-analysis",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/job-categories",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/job-roles",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/send-feedback",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/build-resume",
-      "dest": "/backend/api/index.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/static/(.*)",

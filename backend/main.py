@@ -23,10 +23,15 @@ try:
 except Exception:
     docx = None
 
-# Load environment variables from .env file located next to this file
-_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
-_DOTENV_PATH = os.path.join(_BACKEND_DIR, ".env")
-load_dotenv(dotenv_path=_DOTENV_PATH, override=True)
+# Load environment variables - flexible for Vercel deployment
+if os.environ.get("VERCEL"):
+    # For Vercel deployment, environment variables are set directly
+    pass
+else:
+    # For local development, load from .env file
+    _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+    _DOTENV_PATH = os.path.join(_BACKEND_DIR, ".env")
+    load_dotenv(dotenv_path=_DOTENV_PATH, override=True)
 
 
 app = FastAPI(title="CVision Standard Analyzer", version="0.1.0")
@@ -84,6 +89,7 @@ if os.environ.get("VERCEL"):
     # Use temp directories for Vercel serverless
     _STORAGE_DIR = tempfile.gettempdir()
     _UPLOADS_DIR = tempfile.gettempdir()
+    # Don't create directories in Vercel - will crash
 else:
     # Use local directories for development
     _STORAGE_DIR = os.path.join(_BACKEND_DIR, "storage")
@@ -104,6 +110,8 @@ def _load_analyses_from_disk():
                     resume_analyses_storage = data
     except Exception as e:
         print(f"Failed to load analyses from disk: {e}")
+        # In Vercel, start with empty storage if disk fails
+        resume_analyses_storage = []
 
 def _save_analyses_to_disk():
     """Save resume analyses to disk storage"""
@@ -112,6 +120,8 @@ def _save_analyses_to_disk():
             json.dump(resume_analyses_storage, f, ensure_ascii=False)
     except Exception as e:
         print(f"Failed to save analyses to disk: {e}")
+        # In Vercel, continue without persistence
+        pass
 
 # Initialize storage
 _load_analyses_from_disk()
