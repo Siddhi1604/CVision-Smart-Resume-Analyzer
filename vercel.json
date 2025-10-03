@@ -2,7 +2,16 @@
   "version": 2,
   "builds": [
     {
-      "src": "../backend/api/index.py",
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "cmd": "npm install && npm run build",
+        "cwd": "frontend",
+        "distDir": "build"
+      }
+    },
+    {
+      "src": "backend/api/index.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "50mb"
@@ -48,7 +57,7 @@
     },
     {
       "src": "/job-roles", 
-      "dest": "/api/index.py"
+      "/dest": "/api/index.py"
     },
     {
       "src": "/send-feedback",
