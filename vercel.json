@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build", 
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "frontend/build"
       }
     },
     {
-      "src": "../backend/api/index.py",
+      "src": "backend/api/index.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "50mb"
@@ -22,7 +22,7 @@
       "dest": "/api/index.py"
     },
     {
-      "src": "/health", 
+      "src": "/health",
       "dest": "/api/index.py"
     },
     {
@@ -50,15 +50,19 @@
       "dest": "/api/index.py"
     },
     {
-      "src": "/feedback",
-      "dest": "/api/index.py"
-    },
-    {
       "src": "/job-categories",
       "dest": "/api/index.py"
     },
     {
-      "src": "/job-roles",
+      "src": "/job-roles", 
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/send-feedback",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/build-resume",
       "dest": "/api/index.py"
     },
     {
