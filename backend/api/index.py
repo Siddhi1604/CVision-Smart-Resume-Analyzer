@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 
 # Add the backend directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -9,31 +10,53 @@ sys.path.insert(0, backend_dir)
 # Set environment variables for Vercel deployment
 os.environ["VERCEL"] = "1"
 
-# Simple working handler first
+# Custom handler that bypasses Mangum issues
 def handler(event, context):
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": '{"status": "ok", "message": "Backend is working!"}'
-    }
-
-# Try to import the full app without lifespan parameter (simplest approach)
-try:
-    print("Attempting to import FastAPI app...")
-    from main import app
-    print("FastAPI app imported successfully")
-    
-    from mangum import Mangum
-    print("Mangum imported successfully")
-    
-    # Create handler without lifespan parameter
-    handler = Mangum(app)
-    print("Mangum handler created successfully without lifespan")
-    
-except Exception as e:
-    print(f"Error during import: {str(e)}")
-    import traceback
-    traceback.print_exc()
-    
-    # Keep the simple handler if import fails
-    pass
+    try:
+        # Import FastAPI inside handler to avoid startup issues
+        from main import app
+        
+        # Simple request/response mapping
+        path = event.get('path', '')
+        method = event.get('httpMethod', event.get('method', 'GET'))
+        
+        # Handle specific routes
+        if path == '/health':
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"status": "ok", "message": "Backend is working!"})
+            }
+        
+        # Import FastAPI test client
+        from fastapi.testclient import TestClient
+        client = TestClient(app)
+        
+        # Convert Vercel event to FastAPI request
+        headers = event.get('headers', {})
+        query_string = event.get('queryString', '')
+        
+        response = client.request(
+            method=method,
+            url=path,
+            headers=headers,
+            params=query_string.split('&') if query_string else [],
+            data=event.get('body', '') if event.get('body') else None
+        )
+        
+        return {
+            "statusCode": response.status_code,
+            "headers": {"Content-Type": "application/json"},
+            "body": response.text
+        }
+        
+    except Exception as e:
+        print(f"Handler error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"error": str(e)})
+        }
