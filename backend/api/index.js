@@ -813,6 +813,7 @@ app.post('/build-resume', (req, res) => {
   res.json({ message: 'Build resume endpoint - Node.js backend working' });
 });
 
+// Send feedback endpoint
 app.post('/send-feedback', async (req, res) => {
   try {
     const { name, email, subject, message, rating } = req.body;
