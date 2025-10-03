@@ -59,29 +59,34 @@ const ResumeAnalyzer = () => {
     }
 
     setLoading(true);
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('job_category', jobCategory);
-    formData.append('job_role', jobRole);
-    formData.append('user_id', userId);
+    
+    // For now, send JSON data instead of FormData since we don't have file upload handling
+    const requestData = {
+      job_category: jobCategory,
+      job_role: jobRole,
+      user_id: userId
+    };
     
     if (customJobDescription) {
-      formData.append('custom_job_description', customJobDescription);
+      requestData.custom_job_description = customJobDescription;
     }
 
     try {
       const endpoint = analysisType === 'ai' ? '/ai-analyze-resume' : '/analyze-resume';
-      const response = await axios.post(endpoint, formData, {
+      console.log('Sending analysis request to:', endpoint, requestData);
+      
+      const response = await axios.post(endpoint, requestData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
         },
       });
       
+      console.log('Analysis response:', response.data);
       setAnalysis(response.data);
       toast.success('Analysis completed successfully!');
     } catch (error) {
       console.error('Analysis error:', error);
-      toast.error(error.response?.data?.detail || 'Error analyzing resume. Please try again.');
+      toast.error(error.response?.data?.error || error.response?.data?.detail || 'Error analyzing resume. Please try again.');
     } finally {
       setLoading(false);
     }

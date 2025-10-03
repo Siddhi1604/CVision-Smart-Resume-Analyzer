@@ -6,7 +6,7 @@ import { BrowserRouter } from 'react-router-dom';
 import axios from 'axios';
 
 // Configure API base URL for the backend service (env override for deployments)
-const apiBaseURL = process.env.REACT_APP_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://127.0.0.1:5050' : '');
+const apiBaseURL = process.env.REACT_APP_API_BASE_URL || '';
 axios.defaults.baseURL = apiBaseURL;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
