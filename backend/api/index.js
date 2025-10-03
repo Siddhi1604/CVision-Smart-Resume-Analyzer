@@ -7,7 +7,6 @@ const { v4: uuidv4 } = require('uuid');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const OpenAI = require('openai');
-const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -28,62 +27,6 @@ if (!openaiApiKey) {
   });
   console.log('✅ OpenAI client initialized successfully');
 }
-
-// Initialize email transporter for feedback
-const emailTransporter = nodemailer.createTransporter({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'cvision.feedback@gmail.com',
-    pass: process.env.EMAIL_PASSWORD || ''
-  }
-});
-
-// Function to send feedback email
-const sendFeedbackEmail = async (feedbackData) => {
-  try {
-    const { name, email, subject, message, rating } = feedbackData;
-    
-    const mailOptions = {
-      from: process.env.EMAIL_USER || 'cvision.feedback@gmail.com',
-      to: '22it084@charusat.edu.in, 22it157@charusat.edu.in',
-      subject: `CVision Feedback: ${subject}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">New Feedback Received - CVision Resume Analyzer</h2>
-          
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>From:</strong> ${name} (${email})</p>
-            <p><strong>Subject:</strong> ${subject}</p>
-            <p><strong>Rating:</strong> ${rating}/5 ${rating ? '⭐'.repeat(rating) : ''}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-          
-          <div style="background-color: #fff; padding: 20px; border-left: 4px solid #007bff;">
-            <h3 style="color: #007bff; margin-top: 0;">Message:</h3>
-            <p style="line-height: 1.6;">${message.replace(/\n/g, '<br>')}</p>
-          </div>
-          
-          <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 4px; font-size: 12px; color: #666;">
-            <p>This feedback was sent automatically from the CVision application.</p>
-          </div>
-        </div>
-      `
-    };
-
-    if (process.env.EMAIL_PASSWORD) {
-      await emailTransporter.sendMail(mailOptions);
-      console.log('✅ Feedback email sent successfully');
-      return true;
-    } else {
-      console.log('⚠️ Email password not configured. Feedback would be sent to:', mailOptions.to);
-      console.log('📧 Feedback content:', { name, email, subject, message, rating });
-      return false;
-    }
-  } catch (error) {
-    console.error('❌ Error sending feedback email:', error);
-    return false;
-  }
-};
 
 // In-memory storage for resume analyses (Vercel-compatible)
 let resumeAnalysesStorage = [];
@@ -813,56 +756,8 @@ app.post('/build-resume', (req, res) => {
   res.json({ message: 'Build resume endpoint - Node.js backend working' });
 });
 
-// Send feedback endpoint
-app.post('/send-feedback', async (req, res) => {
-  try {
-    const { name, email, subject, message, rating } = req.body;
-    
-    // Validate required fields
-    if (!name || !email || !subject || !message) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: name, email, subject, message' 
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
-        error: 'Invalid email format' 
-      });
-    }
-
-    // Validate rating if provided
-    if (rating && (rating < 1 || rating > 5)) {
-      return res.status(400).json({ 
-        error: 'Rating must be between 1 and 5' 
-      });
-    }
-
-    console.log('📧 Processing feedback from:', name, email);
-
-    // Send feedback email
-    const emailSent = await sendFeedbackEmail({ name, email, subject, message, rating });
-
-    if (emailSent) {
-      res.json({ 
-        message: 'Feedback sent successfully!', 
-        status: 'success' 
-      });
-    } else {
-      res.json({ 
-        message: 'Feedback logged (email not configured)', 
-        status: 'logged' 
-      });
-    }
-
-  } catch (error) {
-    console.error('❌ Feedback error:', error);
-    res.status(500).json({ 
-      error: 'Failed to send feedback: ' + error.message 
-    });
-  }
+app.post('/send-feedback', (req, res) => {
+  res.json({ message: 'Feedback endpoint - Node.js backend working' });
 });
 
 app.get('/job-skills', (req, res) => {
