@@ -5,71 +5,14 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "cmd": "npm run build",
-        "cwd": "frontend",
         "distDir": "build"
-      }
-    },
-    {
-      "src": "backend/api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
       }
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/health",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/analyze-resume",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/ai-analyze-resume",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/user-analyses/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/download-resume/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/job-skills",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/store-analysis",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/job-categories",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/job-roles", 
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/send-feedback",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/build-resume",
-      "dest": "/api/index.py"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/"
     }
   ]
 }
