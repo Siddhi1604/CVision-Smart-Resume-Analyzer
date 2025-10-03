@@ -75,7 +75,13 @@ app.use(express.json());
 
 // Health endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is working!' });
+  console.log('Health endpoint called');
+  res.json({ 
+    status: 'ok', 
+    message: 'Backend is working!',
+    timestamp: new Date().toISOString(),
+    analysesCount: resumeAnalysesStorage.length
+  });
 });
 
 // Job categories endpoint
@@ -383,6 +389,7 @@ function analyzeResume(resumeText, jobCategory, jobRole) {
 // Resume analysis endpoint
 app.post('/analyze-resume', (req, res) => {
   try {
+    console.log('Analyze resume endpoint called with:', req.body);
     const { job_category, job_role, user_id = 'default_user' } = req.body;
     
     if (!job_category || !job_role) {
@@ -413,7 +420,7 @@ app.post('/analyze-resume', (req, res) => {
     
     // Store the analysis
     const analysisData = {
-      id: require('crypto').randomUUID(),
+      id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
       user_id: user_id,
       resume_name: 'Sample Resume',
       job_category: job_category,
@@ -429,6 +436,7 @@ app.post('/analyze-resume', (req, res) => {
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
     
+    console.log(`Analysis stored. Total analyses: ${resumeAnalysesStorage.length}`);
     res.json(analysis);
   } catch (error) {
     console.error('Analysis error:', error);
@@ -436,9 +444,10 @@ app.post('/analyze-resume', (req, res) => {
   }
 });
 
-// AI resume analysis endpoint (placeholder)
+// AI resume analysis endpoint
 app.post('/ai-analyze-resume', (req, res) => {
   try {
+    console.log('AI analyze resume endpoint called with:', req.body);
     const { job_category, job_role, user_id = 'default_user' } = req.body;
     
     if (!job_category || !job_role) {
@@ -469,7 +478,7 @@ app.post('/ai-analyze-resume', (req, res) => {
     
     // Store the analysis
     const analysisData = {
-      id: require('crypto').randomUUID(),
+      id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
       user_id: user_id,
       resume_name: 'Sample Resume',
       job_category: job_category,
@@ -485,6 +494,7 @@ app.post('/ai-analyze-resume', (req, res) => {
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
     
+    console.log(`AI Analysis stored. Total analyses: ${resumeAnalysesStorage.length}`);
     res.json(analysis);
   } catch (error) {
     console.error('AI Analysis error:', error);
@@ -495,6 +505,7 @@ app.post('/ai-analyze-resume', (req, res) => {
 // User analyses endpoint
 app.get('/user-analyses/:userId', (req, res) => {
   try {
+    console.log('User analyses endpoint called for user:', req.params.userId);
     const { userId } = req.params;
     const userAnalyses = resumeAnalysesStorage.filter(analysis => 
       analysis.user_id === userId
@@ -502,6 +513,9 @@ app.get('/user-analyses/:userId', (req, res) => {
     
     // Sort by created_at date (newest first)
     userAnalyses.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    console.log(`Found ${userAnalyses.length} analyses for user ${userId}`);
+    console.log('Total analyses in storage:', resumeAnalysesStorage.length);
     
     res.json({ analyses: userAnalyses });
   } catch (error) {
@@ -557,7 +571,7 @@ app.get('/job-skills', (req, res) => {
 app.post('/store-analysis', (req, res) => {
   try {
     const analysisData = {
-      id: require('crypto').randomUUID(),
+      id: Math.random().toString(36).substr(2, 9) + Date.now().toString(36),
       ...req.body,
       created_at: new Date().toISOString()
     };
