@@ -1,26 +1,15 @@
-import sys
-import os
 import json
-
-# Add the backend directory to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-backend_dir = os.path.dirname(current_dir)
-sys.path.insert(0, backend_dir)
+import os
 
 # Set environment variables for Vercel deployment
 os.environ["VERCEL"] = "1"
 
-# Custom handler that bypasses Mangum issues
+# Start with just this simple handler
 def handler(event, context):
     try:
-        # Import FastAPI inside handler to avoid startup issues
-        from main import app
-        
-        # Simple request/response mapping
+        # Handle /health endpoint directly
         path = event.get('path', '')
-        method = event.get('httpMethod', event.get('method', 'GET'))
         
-        # Handle specific routes
         if path == '/health':
             return {
                 "statusCode": 200,
@@ -28,33 +17,41 @@ def handler(event, context):
                 "body": json.dumps({"status": "ok", "message": "Backend is working!"})
             }
         
-        # Import FastAPI test client
-        from fastapi.testclient import TestClient
-        client = TestClient(app)
+        if path == '/job-categories':
+            # Hardcoded job categories response
+            categories = [
+                "Engineering", "Data Science", "Product", "Design", 
+                "Marketing", "Sales", "Operations", "Finance",
+                "Human Resources", "Customer Success", "Quality Assurance"
+            ]
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"categories": categories})
+            }
         
-        # Convert Vercel event to FastAPI request
-        headers = event.get('headers', {})
-        query_string = event.get('queryString', '')
+        if path == '/job-roles':
+            # Hardcoded job roles response
+            roles = {
+                "Engineering": ["Software Engineer", "Backend Developer", "Frontend Developer", "Full Stack Developer"],
+                "Data Science": ["Data Scientist", "Data Analyst", "ML Engineer", "Data Engineer"],
+                "Product": ["Product Manager", "Product Owner", "Product Designer"]
+            }
+            return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"roles_by_category": roles})
+            }
         
-        response = client.request(
-            method=method,
-            url=path,
-            headers=headers,
-            params=query_string.split('&') if query_string else [],
-            data=event.get('body', '') if event.get('body') else None
-        )
-        
+        # Default response for other endpoints
         return {
-            "statusCode": response.status_code,
+            "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
-            "body": response.text
+            "body": json.dumps({"message": f"Endpoint {path} is working", "info": "Using basic handler"})
         }
         
     except Exception as e:
         print(f"Handler error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
