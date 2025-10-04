@@ -80,7 +80,12 @@ const ResumeAnalyzer = () => {
       setAnalysis(response.data);
       toast.success('Analysis completed successfully!');
       
-      // Trigger dashboard refresh
+      // Trigger dashboard refresh with dynamic timeout based on analysis type
+      // AI analysis needs more time to ensure data is fully stored
+      const refreshDelay = analysisType === 'ai' ? 3000 : 1000;
+      
+      console.log(`🔄 Scheduling dashboard refresh in ${refreshDelay}ms for ${analysisType} analysis...`);
+      
       setTimeout(() => {
         // Method 1: Dispatch custom event
         window.dispatchEvent(new CustomEvent('analysisCompleted'));
@@ -88,8 +93,8 @@ const ResumeAnalyzer = () => {
         // Method 2: Set localStorage flag as backup
         localStorage.setItem('analysisCompleted', Date.now().toString());
         
-        console.log('🔄 Triggered dashboard refresh after analysis completion');
-      }, 1000); // Small delay to ensure analysis is fully processed
+        console.log('✅ Dashboard refresh triggered after', analysisType, 'analysis completion');
+      }, refreshDelay);
     } catch (error) {
       console.error('Analysis error:', error);
       toast.error(error.response?.data?.detail || 'Error analyzing resume. Please try again.');
