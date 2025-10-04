@@ -79,6 +79,17 @@ const ResumeAnalyzer = () => {
       
       setAnalysis(response.data);
       toast.success('Analysis completed successfully!');
+      
+      // Trigger dashboard refresh
+      setTimeout(() => {
+        // Method 1: Dispatch custom event
+        window.dispatchEvent(new CustomEvent('analysisCompleted'));
+        
+        // Method 2: Set localStorage flag as backup
+        localStorage.setItem('analysisCompleted', Date.now().toString());
+        
+        console.log('🔄 Triggered dashboard refresh after analysis completion');
+      }, 1000); // Small delay to ensure analysis is fully processed
     } catch (error) {
       console.error('Analysis error:', error);
       toast.error(error.response?.data?.detail || 'Error analyzing resume. Please try again.');
