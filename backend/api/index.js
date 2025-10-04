@@ -362,6 +362,19 @@ Return ONLY valid JSON in this exact format:
   }
 };
 
+// Helper function to format time ago
+function formatTimeAgo(date) {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+  return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+}
+
 // Adzuna API function
 async function fetchAdzunaJobs(page, keyword, location, jobType, appId, apiKey) {
   const baseUrl = `https://api.adzuna.com/v1/api/jobs/${location}/search/${page + 1}`;
@@ -406,10 +419,13 @@ async function fetchAdzunaJobs(page, keyword, location, jobType, appId, apiKey) 
     salary: job.salary_min && job.salary_max 
       ? `$${job.salary_min.toLocaleString()} - $${job.salary_max.toLocaleString()}`
       : 'Salary not specified',
-    job_type: jobType,
+    type: jobType === 'full_time' ? 'Full-time' : 
+          jobType === 'part_time' ? 'Part-time' :
+          jobType === 'contract' ? 'Contract' :
+          jobType === 'internship' ? 'Internship' : 'Full-time',
     description: job.description || 'Job description not available',
     landing_page: job.redirect_url || '#',
-    created: job.created || new Date().toISOString()
+    posted: job.created ? formatTimeAgo(new Date(job.created)) : 'Recently posted'
   }));
   
   return {
@@ -690,10 +706,10 @@ app.get('/api/jobs', async (req, res) => {
       company: 'TechCorp Inc.',
       location: 'San Francisco, CA',
       salary: '$120,000 - $150,000',
-      job_type: 'full_time',
+      type: 'Full-time',
       description: 'We are looking for a senior software engineer to join our team...',
       landing_page: 'https://example.com/job/1',
-      created: '2024-01-15T10:00:00Z'
+      posted: '2 days ago'
     },
     {
       id: 2,
@@ -701,10 +717,10 @@ app.get('/api/jobs', async (req, res) => {
       company: 'StartupXYZ',
       location: 'Remote',
       salary: '$90,000 - $110,000',
-      job_type: 'full_time',
+      type: 'Full-time',
       description: 'Join our frontend team to build amazing user experiences...',
       landing_page: 'https://example.com/job/2',
-      created: '2024-01-14T15:30:00Z'
+      posted: '3 days ago'
     },
     {
       id: 3,
@@ -712,10 +728,10 @@ app.get('/api/jobs', async (req, res) => {
       company: 'DataFlow Systems',
       location: 'New York, NY',
       salary: '$100,000 - $130,000',
-      job_type: 'full_time',
+      type: 'Full-time',
       description: 'Build scalable backend systems for our data platform...',
       landing_page: 'https://example.com/job/3',
-      created: '2024-01-13T09:15:00Z'
+      posted: '4 days ago'
     },
     {
       id: 4,
@@ -723,10 +739,10 @@ app.get('/api/jobs', async (req, res) => {
       company: 'InnovateTech',
       location: 'Austin, TX',
       salary: '$95,000 - $125,000',
-      job_type: 'full_time',
+      type: 'Full-time',
       description: 'Work on both frontend and backend development...',
       landing_page: 'https://example.com/job/4',
-      created: '2024-01-12T14:45:00Z'
+      posted: '5 days ago'
     },
     {
       id: 5,
@@ -734,10 +750,10 @@ app.get('/api/jobs', async (req, res) => {
       company: 'Analytics Pro',
       location: 'Seattle, WA',
       salary: '$110,000 - $140,000',
-      job_type: 'full_time',
+      type: 'Full-time',
       description: 'Apply machine learning and statistical analysis...',
       landing_page: 'https://example.com/job/5',
-      created: '2024-01-11T11:20:00Z'
+      posted: '6 days ago'
     }
   ];
 
