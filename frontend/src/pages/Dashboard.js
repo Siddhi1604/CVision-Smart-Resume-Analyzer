@@ -49,9 +49,25 @@ const Dashboard = () => {
       const analyses = [...(respPrimary.data.analyses || []), ...(respFallback?.data?.analyses || [])];
       
       console.log('📊 Found analyses:', analyses.length);
+      console.log('🔍 Raw analyses data:', analyses);
+      console.log('🔍 Primary response:', respPrimary.data);
+      console.log('🔍 Fallback response:', respFallback?.data);
+      
+      // Check for duplicate IDs
+      const analysisIds = analyses.map(a => a.id);
+      const uniqueIds = [...new Set(analysisIds)];
+      console.log('🔍 Analysis IDs:', analysisIds);
+      console.log('🔍 Unique IDs:', uniqueIds);
+      console.log('🔍 Duplicate check:', analysisIds.length !== uniqueIds.length ? 'DUPLICATES FOUND!' : 'No duplicates');
+      
+      // Remove duplicates if any (keep the latest one)
+      const uniqueAnalyses = analyses.filter((analysis, index, self) => 
+        index === self.findIndex(a => a.id === analysis.id)
+      );
+      console.log('🔍 After deduplication:', uniqueAnalyses.length);
       
       // Transform backend data to frontend format
-      const transformedAnalyses = analyses.map((analysis, index) => ({
+      const transformedAnalyses = uniqueAnalyses.map((analysis, index) => ({
         id: analysis.id,
         resumeId: analysis.id,
         score: analysis.analysis_result.ats_score,
@@ -65,7 +81,7 @@ const Dashboard = () => {
       }));
 
       // Create resume list from analyses
-      const resumes = analyses.map((analysis, index) => ({
+      const resumes = uniqueAnalyses.map((analysis, index) => ({
         id: analysis.id,
         title: analysis.resume_name || `Resume ${index + 1}`,
         jobRole: analysis.job_role,

@@ -574,6 +574,13 @@ app.post('/analyze-resume', upload.single('file'), async (req, res) => {
       file_path: filePath
     };
 
+    console.log('💾 Storing standard analysis:', {
+      id: analysisId,
+      user_id: user_id,
+      resume_name: fileName,
+      total_stored: resumeAnalysesStorage.length + 1
+    });
+
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
 
@@ -630,6 +637,13 @@ app.post('/ai-analyze-resume', upload.single('file'), async (req, res) => {
       file_name: fileName,
       file_path: filePath
     };
+
+    console.log('💾 Storing AI analysis:', {
+      id: analysisId,
+      user_id: user_id,
+      resume_name: fileName,
+      total_stored: resumeAnalysesStorage.length + 1
+    });
 
     resumeAnalysesStorage.push(analysisData);
     saveAnalysesToFile();
@@ -771,6 +785,11 @@ app.get('/user-analyses/:id', (req, res) => {
   try {
     const userId = req.params.id;
     const userAnalyses = resumeAnalysesStorage.filter(analysis => analysis.user_id === userId);
+    
+    console.log('🔍 Fetching analyses for user:', userId);
+    console.log('🔍 Total analyses in storage:', resumeAnalysesStorage.length);
+    console.log('🔍 User analyses found:', userAnalyses.length);
+    console.log('🔍 All user IDs in storage:', [...new Set(resumeAnalysesStorage.map(a => a.user_id))]);
     
     // Sort by created_at date (newest first)
     userAnalyses.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
