@@ -13,8 +13,10 @@ import {
   Calendar,
   CheckCircle,
   Clock
-} from 'lucide-react';const Dashboard = () => {
-  const { user } = useAuth();
+} from 'lucide-react';
+
+const Dashboard = () => {
+  const { user, loading: authLoading } = useAuth();
   const [userResumes, setUserResumes] = useState([]);
   const [resumeAnalyses, setResumeAnalyses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,13 +32,23 @@ import {
     try {
       setLoading(true);
       
+      // Wait for auth to complete if still loading
+      if (authLoading) {
+        console.log('⏳ Waiting for authentication to complete...');
+        return;
+      }
+      
       // Fetch real analyses from backend (current user and fallback legacy default_user)
       const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
+      
+      console.log('🔍 Fetching data for user ID:', currentUserId);
       const [respPrimary, respFallback] = await Promise.all([
         axios.get(`/user-analyses/${currentUserId}`),
         axios.get(`/user-analyses/default_user`).catch(() => ({ data: { analyses: [] } }))
       ]);
       const analyses = [...(respPrimary.data.analyses || []), ...(respFallback?.data?.analyses || [])];
+      
+      console.log('📊 Found analyses:', analyses.length);
       
       // Transform backend data to frontend format
       const transformedAnalyses = analyses.map((analysis, index) => ({
@@ -87,6 +99,13 @@ import {
         bestScore, 
         recentActivity: sortedAnalyses.slice(0, 3) 
       });
+      
+      console.log('✅ Dashboard data loaded successfully:', {
+        totalResumes,
+        totalAnalyses,
+        averageScore,
+        bestScore
+      });
 
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -103,11 +122,15 @@ import {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, user?.email, user?.displayName]);
+  }, [user?.uid, user?.email, user?.displayName, authLoading]);
 
+  // Wait for auth to complete before fetching data
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    if (!authLoading) {
+      console.log('🔐 Authentication completed, fetching dashboard data...');
+      fetchUserData();
+    }
+  }, [authLoading, fetchUserData]);
 
   // Listen for analysis completion events
   useEffect(() => {
@@ -148,11 +171,17 @@ import {
     return { text: 'Needs Work', color: 'bg-red-500/20 text-red-400' };
   };
 
-  if (loading) {
+  // Show loading while auth is loading or data is fetching
+  if (authLoading || loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center h-64">
-          <div className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full loading"></div>
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full loading mx-auto mb-4"></div>
+            <p className="text-gray-300">
+              {authLoading ? 'Loading authentication...' : 'Loading dashboard data...'}
+            </p>
+          </div>
         </div>
       </div>
     );
