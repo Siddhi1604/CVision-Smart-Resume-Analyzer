@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const OpenAI = require('openai');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -27,6 +28,89 @@ if (!openaiApiKey) {
   });
   console.log('✅ OpenAI client initialized successfully');
 }
+
+// Email configuration for feedback
+const emailTransporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: 'vescart11@gmail.com',
+    pass: 'misi xgut dhlx anhn'
+  }
+});
+
+// Function to send feedback email
+const sendFeedbackEmail = async (feedbackData) => {
+  try {
+    const { name, email, subject, message, rating } = feedbackData;
+    
+    const mailOptions = {
+      from: 'vescart11@gmail.com',
+      to: ['22it084@charusat.edu.in', '22it157@charusat.edu.in'],
+      subject: `CVision Feedback: ${subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">CVision Resume Analyzer</h1>
+            <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">New Feedback Received</p>
+          </div>
+          
+          <div style="background-color: white; padding: 30px;">
+            <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h2 style="color: #1976d2; margin-top: 0; font-size: 20px;">📧 Feedback Details</h2>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #333;">From:</td>
+                  <td style="padding: 8px 0; color: #555;">${name} (${email})</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #333;">Subject:</td>
+                  <td style="padding: 8px 0; color: #555;">${subject}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #333;">Rating:</td>
+                  <td style="padding: 8px 0; color: #555;">${rating ? `${rating}/5 ⭐` : 'Not provided'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; font-weight: bold; color: #333;">Date:</td>
+                  <td style="padding: 8px 0; color: #555;">${new Date().toLocaleString()}</td>
+                </tr>
+              </table>
+            </div>
+            
+            <div style="background-color: #f5f5f5; padding: 20px; border-left: 4px solid #667eea; margin-bottom: 20px;">
+              <h3 style="color: #333; margin-top: 0; font-size: 18px;">💬 Message:</h3>
+              <div style="background-color: white; padding: 15px; border-radius: 5px; line-height: 1.6; color: #555;">
+                ${message.replace(/\n/g, '<br>')}
+              </div>
+            </div>
+            
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+              <p style="margin: 0; color: #6c757d; font-size: 14px;">
+                📱 This feedback was sent automatically from the CVision Resume Analyzer application.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 12px;">
+                Please respond to the user at: <strong>${email}</strong>
+              </p>
+            </div>
+          </div>
+          
+          <div style="background-color: #333; padding: 20px; text-align: center;">
+            <p style="color: #fff; margin: 0; font-size: 14px;">
+              © 2024 CVision Resume Analyzer | Powered by AI Technology
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await emailTransporter.sendMail(mailOptions);
+    console.log('✅ Feedback email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('❌ Error sending feedback email:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 // In-memory storage for resume analyses (Vercel-compatible)
 let resumeAnalysesStorage = [];
@@ -724,8 +808,82 @@ app.post('/build-resume', (req, res) => {
   res.json({ message: 'Build resume endpoint - Node.js backend working' });
 });
 
-app.post('/send-feedback', (req, res) => {
-  res.json({ message: 'Feedback endpoint - Node.js backend working' });
+app.post('/send-feedback', async (req, res) => {
+  try {
+    const { name, email, subject, message, rating } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !message) {
+      return res.status(400).json({ 
+        error: 'Name, email, and message are required fields',
+        status: 'error'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        error: 'Please provide a valid email address',
+        status: 'error'
+      });
+    }
+
+    // Validate rating if provided
+    if (rating && (rating < 1 || rating > 5)) {
+      return res.status(400).json({ 
+        error: 'Rating must be between 1 and 5',
+        status: 'error'
+      });
+    }
+
+    // Validate message length
+    if (message.length < 10) {
+      return res.status(400).json({ 
+        error: 'Message must be at least 10 characters long',
+        status: 'error'
+      });
+    }
+
+    if (message.length > 1000) {
+      return res.status(400).json({ 
+        error: 'Message must be less than 1000 characters',
+        status: 'error'
+      });
+    }
+
+    console.log('📧 Processing feedback from:', name, email);
+    
+    // Send feedback email
+    const emailResult = await sendFeedbackEmail({
+      name: name.trim(),
+      email: email.trim(),
+      subject: subject ? subject.trim() : 'General Feedback',
+      message: message.trim(),
+      rating: rating ? parseInt(rating) : null
+    });
+
+    if (emailResult.success) {
+      console.log('✅ Feedback processed successfully');
+      res.json({ 
+        message: 'Thank you for your feedback! We\'ll get back to you soon.',
+        status: 'success'
+      });
+    } else {
+      console.error('❌ Failed to send feedback email:', emailResult.error);
+      res.status(500).json({ 
+        error: 'Failed to send feedback. Please try again later.',
+        status: 'error'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Error processing feedback:', error);
+    res.status(500).json({ 
+      error: 'Internal server error while processing feedback',
+      status: 'error'
+    });
+  }
 });
 
 app.get('/job-skills', (req, res) => {
