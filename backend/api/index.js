@@ -30,7 +30,7 @@ if (!openaiApiKey) {
 }
 
 // Email configuration for feedback
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'vescart11@gmail.com',
@@ -896,3 +896,13 @@ app.post('/store-analysis', (req, res) => {
 
 // Export for Vercel
 module.exports = app;
+
+// Start server for local development
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📧 Feedback system ready`);
+    console.log(`🤖 AI analysis: ${openaiClient ? 'Enabled' : 'Disabled (no API key)'}`);
+  });
+}
