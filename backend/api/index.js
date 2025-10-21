@@ -8,7 +8,17 @@ const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const OpenAI = require('openai');
 const nodemailer = require('nodemailer');
-const { supabase } = require('../supabase');
+
+// Optional Supabase integration
+let supabase = null;
+try {
+  const supabaseModule = require('../supabase');
+  supabase = supabaseModule.supabase;
+  console.log('✅ Supabase integration enabled');
+} catch (error) {
+  console.log('⚠️ Supabase integration disabled:', error.message);
+  console.log('📝 Dashboard will use fallback storage');
+}
 
 const app = express();
 
@@ -115,6 +125,11 @@ const sendFeedbackEmail = async (feedbackData) => {
 
 // Supabase storage functions
 const storeAnalysisInSupabase = async (analysisData) => {
+  if (!supabase) {
+    console.log('⚠️ Supabase not available, using fallback storage');
+    return null;
+  }
+  
   try {
     const { data, error } = await supabase
       .from('resume_analyses')
@@ -135,6 +150,11 @@ const storeAnalysisInSupabase = async (analysisData) => {
 };
 
 const getUserAnalysesFromSupabase = async (userId) => {
+  if (!supabase) {
+    console.log('⚠️ Supabase not available, returning empty array');
+    return [];
+  }
+  
   try {
     const { data, error } = await supabase
       .from('resume_analyses')
@@ -156,6 +176,11 @@ const getUserAnalysesFromSupabase = async (userId) => {
 };
 
 const getAnalysisByIdFromSupabase = async (analysisId) => {
+  if (!supabase) {
+    console.log('⚠️ Supabase not available, returning null');
+    return null;
+  }
+  
   try {
     const { data, error } = await supabase
       .from('resume_analyses')
@@ -174,6 +199,32 @@ const getAnalysisByIdFromSupabase = async (analysisId) => {
     throw error;
   }
 };
+
+// Fallback storage for when Supabase is not available
+let resumeAnalysesStorage = [];
+
+// Load existing analyses from file if available (Vercel temp directory)
+const loadAnalysesFromFile = () => {
+  try {
+    const data = fs.readFileSync('/tmp/analyses.json', 'utf8');
+    resumeAnalysesStorage = JSON.parse(data);
+  } catch (error) {
+    console.log('No existing analyses file found, starting fresh');
+    resumeAnalysesStorage = [];
+  }
+};
+
+// Save analyses to file (Vercel temp directory)
+const saveAnalysesToFile = () => {
+  try {
+    fs.writeFileSync('/tmp/analyses.json', JSON.stringify(resumeAnalysesStorage, null, 2));
+  } catch (error) {
+    console.error('Failed to save analyses:', error);
+  }
+};
+
+// Initialize fallback storage
+loadAnalysesFromFile();
 
 // Configure multer for file uploads (Vercel-compatible)
 const upload = multer({ 
@@ -627,14 +678,21 @@ app.post('/analyze-resume', upload.single('file'), async (req, res) => {
       file_path: filePath
     };
 
-    console.log('💾 Storing standard analysis in Supabase:', {
+    console.log('💾 Storing standard analysis:', {
       id: analysisId,
       user_id: user_id,
       resume_name: fileName
     });
 
-    // Store in Supabase
-    await storeAnalysisInSupabase(analysisData);
+    // Store in Supabase (if available)
+    try {
+      await storeAnalysisInSupabase(analysisData);
+    } catch (error) {
+      console.log('⚠️ Supabase storage failed, using fallback storage');
+      // Fallback to file storage
+      resumeAnalysesStorage.push(analysisData);
+      saveAnalysesToFile();
+    }
 
     res.json(result);
 
@@ -690,14 +748,21 @@ app.post('/ai-analyze-resume', upload.single('file'), async (req, res) => {
       file_path: filePath
     };
 
-    console.log('💾 Storing AI analysis in Supabase:', {
+    console.log('💾 Storing AI analysis:', {
       id: analysisId,
       user_id: user_id,
       resume_name: fileName
     });
 
-    // Store in Supabase
-    await storeAnalysisInSupabase(analysisData);
+    // Store in Supabase (if available)
+    try {
+      await storeAnalysisInSupabase(analysisData);
+    } catch (error) {
+      console.log('⚠️ Supabase storage failed, using fallback storage');
+      // Fallback to file storage
+      resumeAnalysesStorage.push(analysisData);
+      saveAnalysesToFile();
+    }
 
     console.log('✅ AI analysis completed and stored');
     res.json(result);
@@ -836,11 +901,21 @@ app.get('/user-analyses/:id', async (req, res) => {
   try {
     const userId = req.params.id;
     
-    console.log('🔍 Fetching analyses for user from Supabase:', userId);
+    console.log('🔍 Fetching analyses for user:', userId);
     
-    const userAnalyses = await getUserAnalysesFromSupabase(userId);
+    let userAnalyses = [];
     
-    console.log('🔍 User analyses found:', userAnalyses.length);
+    // Try Supabase first
+    try {
+      userAnalyses = await getUserAnalysesFromSupabase(userId);
+      console.log('✅ Fetched from Supabase:', userAnalyses.length);
+    } catch (error) {
+      console.log('⚠️ Supabase fetch failed, using fallback storage');
+      // Fallback to file storage
+      userAnalyses = resumeAnalysesStorage.filter(analysis => analysis.user_id === userId);
+      userAnalyses.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      console.log('✅ Fetched from fallback:', userAnalyses.length);
+    }
     
     res.json({ analyses: userAnalyses });
   } catch (error) {
@@ -853,7 +928,16 @@ app.get('/user-analyses/:id', async (req, res) => {
 app.get('/download-resume/:id', async (req, res) => {
   try {
     const analysisId = req.params.id;
-    const analysis = await getAnalysisByIdFromSupabase(analysisId);
+    let analysis = null;
+    
+    // Try Supabase first
+    try {
+      analysis = await getAnalysisByIdFromSupabase(analysisId);
+    } catch (error) {
+      console.log('⚠️ Supabase fetch failed, using fallback storage');
+      // Fallback to file storage
+      analysis = resumeAnalysesStorage.find(a => a.id === analysisId);
+    }
     
     if (!analysis || !analysis.file_path) {
       return res.status(404).json({ error: 'Resume not found' });
