@@ -15,6 +15,8 @@ try {
   const supabaseModule = require('../supabase');
   supabase = supabaseModule.supabase;
   console.log('✅ Supabase integration enabled');
+  console.log('🔍 Supabase URL:', process.env.SUPABASE_URL || 'not set');
+  console.log('🔍 Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set');
 } catch (error) {
   console.log('⚠️ Supabase integration disabled:', error.message);
   console.log('📝 Dashboard will use fallback storage');
@@ -131,20 +133,27 @@ const storeAnalysisInSupabase = async (analysisData) => {
   }
   
   try {
+    console.log('🔄 Attempting to store analysis in Supabase...');
+    console.log('🔍 Analysis data:', {
+      id: analysisData.id,
+      user_id: analysisData.user_id,
+      resume_name: analysisData.resume_name
+    });
+    
     const { data, error } = await supabase
       .from('resume_analyses')
       .insert([analysisData])
       .select();
     
     if (error) {
-      console.error('Error storing analysis in Supabase:', error);
+      console.error('❌ Error storing analysis in Supabase:', error);
       throw error;
     }
     
     console.log('✅ Analysis stored in Supabase:', data[0]?.id);
     return data[0];
   } catch (error) {
-    console.error('Failed to store analysis in Supabase:', error);
+    console.error('❌ Failed to store analysis in Supabase:', error);
     throw error;
   }
 };
@@ -156,6 +165,7 @@ const getUserAnalysesFromSupabase = async (userId) => {
   }
   
   try {
+    console.log(`🔍 Fetching analyses for user from Supabase: ${userId}`);
     const { data, error } = await supabase
       .from('resume_analyses')
       .select('*')
@@ -163,14 +173,14 @@ const getUserAnalysesFromSupabase = async (userId) => {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Error fetching user analyses from Supabase:', error);
+      console.error('❌ Error fetching user analyses from Supabase:', error);
       throw error;
     }
     
     console.log(`✅ Fetched ${data?.length || 0} analyses for user: ${userId}`);
     return data || [];
   } catch (error) {
-    console.error('Failed to fetch user analyses from Supabase:', error);
+    console.error('❌ Failed to fetch user analyses from Supabase:', error);
     throw error;
   }
 };
