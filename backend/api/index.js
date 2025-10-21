@@ -20,14 +20,17 @@ try {
   console.log('🔍 Supabase URL:', process.env.SUPABASE_URL || 'not set');
   console.log('🔍 Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set');
   
-  // Test Supabase connection
-  supabase.from('resume_analyses').select('count').limit(1).then(() => {
-    console.log('✅ Supabase connection test successful');
-    supabaseAvailable = true;
-  }).catch((error) => {
-    console.log('❌ Supabase connection test failed:', error.message);
-    supabaseAvailable = false;
-  });
+  // Test Supabase connection synchronously
+  (async () => {
+    try {
+      await supabase.from('resume_analyses').select('count').limit(1);
+      console.log('✅ Supabase connection test successful');
+      supabaseAvailable = true;
+    } catch (error) {
+      console.log('❌ Supabase connection test failed:', error.message);
+      supabaseAvailable = false;
+    }
+  })();
   
 } catch (error) {
   console.log('⚠️ Supabase integration disabled:', error.message);
@@ -139,7 +142,7 @@ const sendFeedbackEmail = async (feedbackData) => {
 
 // Supabase storage functions
 const storeAnalysisInSupabase = async (analysisData) => {
-  if (!supabase || !supabaseAvailable) {
+  if (!supabase) {
     console.log('⚠️ Supabase not available, using fallback storage');
     return null;
   }
@@ -171,7 +174,7 @@ const storeAnalysisInSupabase = async (analysisData) => {
 };
 
 const getUserAnalysesFromSupabase = async (userId) => {
-  if (!supabase || !supabaseAvailable) {
+  if (!supabase) {
     console.log('⚠️ Supabase not available, returning empty array');
     return [];
   }
@@ -566,7 +569,8 @@ app.get('/health', (req, res) => {
     message: 'Backend is working!',
     ai_enabled: !!openaiClient,
     supabase_enabled: !!supabase,
-    supabase_available: supabaseAvailable
+    supabase_url: process.env.SUPABASE_URL || 'not set',
+    supabase_service_key: process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set'
   });
 });
 
