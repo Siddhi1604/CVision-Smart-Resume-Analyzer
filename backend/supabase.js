@@ -10,11 +10,19 @@ console.log('🔍 Supabase URL:', supabaseUrl);
 console.log('🔍 Supabase Anon Key (first 20 chars):', supabaseAnonKey?.substring(0, 20));
 console.log('🔍 Supabase Service Key (first 20 chars):', supabaseServiceKey?.substring(0, 20));
 
-// Create Supabase client for server-side operations (uses service key)
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Create Supabase clients with error handling
+let supabase = null;
+let supabaseAnon = null;
 
-// Create Supabase client for client-side operations (uses anon key)
-const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
+try {
+  console.log('🔄 Creating Supabase clients...');
+  supabase = createClient(supabaseUrl, supabaseServiceKey);
+  supabaseAnon = createClient(supabaseUrl, supabaseAnonKey);
+  console.log('✅ Supabase clients created successfully');
+} catch (error) {
+  console.error('❌ Error creating Supabase clients:', error.message);
+  console.log('⚠️ Supabase will not be available');
+}
 
 module.exports = {
   supabase,

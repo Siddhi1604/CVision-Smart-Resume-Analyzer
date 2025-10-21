@@ -14,23 +14,29 @@ let supabase = null;
 let supabaseAvailable = false;
 
 try {
+  console.log('🔄 Attempting to load Supabase module...');
   const supabaseModule = require('../supabase');
   supabase = supabaseModule.supabase;
-  console.log('✅ Supabase integration enabled');
-  console.log('🔍 Supabase URL:', process.env.SUPABASE_URL || 'not set');
-  console.log('🔍 Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set');
   
-  // Test Supabase connection synchronously
-  (async () => {
-    try {
-      await supabase.from('resume_analyses').select('count').limit(1);
-      console.log('✅ Supabase connection test successful');
-      supabaseAvailable = true;
-    } catch (error) {
-      console.log('❌ Supabase connection test failed:', error.message);
-      supabaseAvailable = false;
-    }
-  })();
+  if (supabase) {
+    console.log('✅ Supabase integration enabled');
+    console.log('🔍 Supabase URL:', process.env.SUPABASE_URL || 'not set');
+    console.log('🔍 Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set');
+    
+    // Test Supabase connection synchronously
+    (async () => {
+      try {
+        await supabase.from('resume_analyses').select('count').limit(1);
+        console.log('✅ Supabase connection test successful');
+        supabaseAvailable = true;
+      } catch (error) {
+        console.log('❌ Supabase connection test failed:', error.message);
+        supabaseAvailable = false;
+      }
+    })();
+  } else {
+    console.log('⚠️ Supabase client is null - check configuration');
+  }
   
 } catch (error) {
   console.log('⚠️ Supabase integration disabled:', error.message);
