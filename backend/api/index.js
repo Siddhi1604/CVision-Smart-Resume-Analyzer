@@ -11,12 +11,24 @@ const nodemailer = require('nodemailer');
 
 // Optional Supabase integration
 let supabase = null;
+let supabaseAvailable = false;
+
 try {
   const supabaseModule = require('../supabase');
   supabase = supabaseModule.supabase;
   console.log('✅ Supabase integration enabled');
   console.log('🔍 Supabase URL:', process.env.SUPABASE_URL || 'not set');
   console.log('🔍 Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set');
+  
+  // Test Supabase connection
+  supabase.from('resume_analyses').select('count').limit(1).then(() => {
+    console.log('✅ Supabase connection test successful');
+    supabaseAvailable = true;
+  }).catch((error) => {
+    console.log('❌ Supabase connection test failed:', error.message);
+    supabaseAvailable = false;
+  });
+  
 } catch (error) {
   console.log('⚠️ Supabase integration disabled:', error.message);
   console.log('📝 Dashboard will use fallback storage');
@@ -127,7 +139,7 @@ const sendFeedbackEmail = async (feedbackData) => {
 
 // Supabase storage functions
 const storeAnalysisInSupabase = async (analysisData) => {
-  if (!supabase) {
+  if (!supabase || !supabaseAvailable) {
     console.log('⚠️ Supabase not available, using fallback storage');
     return null;
   }
@@ -159,7 +171,7 @@ const storeAnalysisInSupabase = async (analysisData) => {
 };
 
 const getUserAnalysesFromSupabase = async (userId) => {
-  if (!supabase) {
+  if (!supabase || !supabaseAvailable) {
     console.log('⚠️ Supabase not available, returning empty array');
     return [];
   }
@@ -552,8 +564,55 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Backend is working!',
-    ai_enabled: !!openaiClient
+    ai_enabled: !!openaiClient,
+    supabase_enabled: !!supabase,
+    supabase_available: supabaseAvailable
   });
+});
+
+// Test Supabase connection endpoint
+app.get('/test-supabase', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.json({ 
+        status: 'error', 
+        message: 'Supabase not initialized',
+        supabase_url: process.env.SUPABASE_URL || 'not set',
+        supabase_service_key: process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set'
+      });
+    }
+    
+    // Test connection
+    const { data, error } = await supabase
+      .from('resume_analyses')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      return res.json({ 
+        status: 'error', 
+        message: 'Supabase connection failed',
+        error: error.message,
+        supabase_url: process.env.SUPABASE_URL || 'not set',
+        supabase_service_key: process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set'
+      });
+    }
+    
+    res.json({ 
+      status: 'success', 
+      message: 'Supabase connection successful',
+      supabase_url: process.env.SUPABASE_URL || 'not set',
+      supabase_service_key: process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set'
+    });
+  } catch (error) {
+    res.json({ 
+      status: 'error', 
+      message: 'Supabase test failed',
+      error: error.message,
+      supabase_url: process.env.SUPABASE_URL || 'not set',
+      supabase_service_key: process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set'
+    });
+  }
 });
 
 // Job categories endpoint
