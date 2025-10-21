@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import ResumeChart from '../components/ResumeChart';
 import axios from 'axios';
+import { getUserAnalyses, subscribeToUserAnalyses } from '../supabase';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -38,36 +39,19 @@ const Dashboard = () => {
         return;
       }
       
-      // Fetch real analyses from backend (current user and fallback legacy default_user)
+      // Get current user ID
       const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
       
-      console.log('🔍 Fetching data for user ID:', currentUserId);
-      const [respPrimary, respFallback] = await Promise.all([
-        axios.get(`/user-analyses/${currentUserId}`),
-        axios.get(`/user-analyses/default_user`).catch(() => ({ data: { analyses: [] } }))
-      ]);
-      const analyses = [...(respPrimary.data.analyses || []), ...(respFallback?.data?.analyses || [])];
+      console.log('🔍 Fetching data for user ID from Supabase:', currentUserId);
       
-      console.log('📊 Found analyses:', analyses.length);
+      // Fetch analyses from Supabase
+      const analyses = await getUserAnalyses(currentUserId);
+      
+      console.log('📊 Found analyses from Supabase:', analyses.length);
       console.log('🔍 Raw analyses data:', analyses);
-      console.log('🔍 Primary response:', respPrimary.data);
-      console.log('🔍 Fallback response:', respFallback?.data);
       
-      // Check for duplicate IDs
-      const analysisIds = analyses.map(a => a.id);
-      const uniqueIds = [...new Set(analysisIds)];
-      console.log('🔍 Analysis IDs:', analysisIds);
-      console.log('🔍 Unique IDs:', uniqueIds);
-      console.log('🔍 Duplicate check:', analysisIds.length !== uniqueIds.length ? 'DUPLICATES FOUND!' : 'No duplicates');
-      
-      // Remove duplicates if any (keep the latest one)
-      const uniqueAnalyses = analyses.filter((analysis, index, self) => 
-        index === self.findIndex(a => a.id === analysis.id)
-      );
-      console.log('🔍 After deduplication:', uniqueAnalyses.length);
-      
-      // Transform backend data to frontend format
-      const transformedAnalyses = uniqueAnalyses.map((analysis, index) => ({
+      // Transform Supabase data to frontend format
+      const transformedAnalyses = analyses.map((analysis, index) => ({
         id: analysis.id,
         resumeId: analysis.id,
         score: analysis.analysis_result.ats_score,
@@ -81,7 +65,7 @@ const Dashboard = () => {
       }));
 
       // Create resume list from analyses
-      const resumes = uniqueAnalyses.map((analysis, index) => ({
+      const resumes = analyses.map((analysis, index) => ({
         id: analysis.id,
         title: analysis.resume_name || `Resume ${index + 1}`,
         jobRole: analysis.job_role,
@@ -148,8 +132,21 @@ const Dashboard = () => {
     }
   }, [authLoading, fetchUserData]);
 
-  // Listen for analysis completion events
+  // Set up real-time subscription and analysis completion events
   useEffect(() => {
+    if (!user?.uid && !user?.email && !user?.displayName) return;
+
+    const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
+    
+    console.log('🔄 Setting up real-time subscription for user:', currentUserId);
+    
+    // Set up Supabase real-time subscription
+    const subscription = subscribeToUserAnalyses(currentUserId, (payload) => {
+      console.log('🔄 Real-time update received:', payload);
+      // Refresh data when changes occur
+      fetchUserData();
+    });
+
     const handleAnalysisComplete = () => {
       console.log('🔄 Analysis completed, refreshing dashboard...');
       fetchUserData();
@@ -168,10 +165,14 @@ const Dashboard = () => {
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
+      // Clean up subscription
+      if (subscription) {
+        subscription.unsubscribe();
+      }
       window.removeEventListener('analysisCompleted', handleAnalysisComplete);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [fetchUserData]);
+  }, [user?.uid, user?.email, user?.displayName, fetchUserData]);
 
   const getScoreColor = (score) => {
     if (score >= 90) return 'text-green-400';

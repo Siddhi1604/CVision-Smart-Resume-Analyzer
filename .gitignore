@@ -1,9 +1,13 @@
 # Node / React
 frontend/node_modules/
+backend/node_modules/
 backend/api/node_modules/
 frontend/build/
 frontend/.cache/
 frontend/.env
+
+# Package files (can be regenerated)
+backend/package-lock.json
 
 # Python venvs (if present in monorepo)
 Smart-AI-Resume-Analyzer/venv/
