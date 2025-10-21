@@ -8,38 +8,38 @@ const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const OpenAI = require('openai');
 const nodemailer = require('nodemailer');
+const { createClient } = require('@supabase/supabase-js');
 
-// Optional Supabase integration
+// Supabase integration - create client directly
 let supabase = null;
 let supabaseAvailable = false;
 
 try {
-  console.log('🔄 Attempting to load Supabase module...');
-  const supabaseModule = require('../supabase');
-  supabase = supabaseModule.supabase;
+  console.log('🔄 Creating Supabase client directly...');
   
-  if (supabase) {
-    console.log('✅ Supabase integration enabled');
-    console.log('🔍 Supabase URL:', process.env.SUPABASE_URL || 'not set');
-    console.log('🔍 Supabase Service Key:', process.env.SUPABASE_SERVICE_KEY ? 'set' : 'not set');
-    
-    // Test Supabase connection synchronously
-    (async () => {
-      try {
-        await supabase.from('resume_analyses').select('count').limit(1);
-        console.log('✅ Supabase connection test successful');
-        supabaseAvailable = true;
-      } catch (error) {
-        console.log('❌ Supabase connection test failed:', error.message);
-        supabaseAvailable = false;
-      }
-    })();
-  } else {
-    console.log('⚠️ Supabase client is null - check configuration');
-  }
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://nbxpgcnkbhtkxwjeqvor.supabase.co';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ieHBnY25rYmh0a3h3amVxdm9yIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTA0OTU2OSwiZXhwIjoyMDc2NjI1NTY5fQ.fOOyX3lWOKeTyAXi7Z-EBv_1A0Pq8_kWanwH9RpnRGU';
+  
+  console.log('🔍 Supabase URL:', supabaseUrl);
+  console.log('🔍 Supabase Service Key:', supabaseServiceKey ? 'set' : 'not set');
+  
+  supabase = createClient(supabaseUrl, supabaseServiceKey);
+  console.log('✅ Supabase client created successfully');
+  
+  // Test Supabase connection
+  (async () => {
+    try {
+      await supabase.from('resume_analyses').select('count').limit(1);
+      console.log('✅ Supabase connection test successful');
+      supabaseAvailable = true;
+    } catch (error) {
+      console.log('❌ Supabase connection test failed:', error.message);
+      supabaseAvailable = false;
+    }
+  })();
   
 } catch (error) {
-  console.log('⚠️ Supabase integration disabled:', error.message);
+  console.log('❌ Error creating Supabase client:', error.message);
   console.log('📝 Dashboard will use fallback storage');
 }
 
