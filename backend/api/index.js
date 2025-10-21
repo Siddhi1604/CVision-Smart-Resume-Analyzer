@@ -187,6 +187,8 @@ const getUserAnalysesFromSupabase = async (userId) => {
   
   try {
     console.log(`🔍 Fetching analyses for user from Supabase: ${userId}`);
+    console.log(`🔍 User ID type: ${typeof userId}, length: ${userId?.length}`);
+    
     const { data, error } = await supabase
       .from('resume_analyses')
       .select('*')
@@ -199,6 +201,7 @@ const getUserAnalysesFromSupabase = async (userId) => {
     }
     
     console.log(`✅ Fetched ${data?.length || 0} analyses for user: ${userId}`);
+    console.log(`🔍 Raw data from Supabase:`, data);
     return data || [];
   } catch (error) {
     console.error('❌ Failed to fetch user analyses from Supabase:', error);
@@ -761,6 +764,13 @@ app.post('/analyze-resume', upload.single('file'), async (req, res) => {
       id: analysisId,
       user_id: user_id,
       resume_name: fileName
+    });
+    console.log('🔍 Analysis data being stored:', {
+      id: analysisId,
+      user_id: user_id,
+      resume_name: fileName,
+      job_category: job_category,
+      job_role: job_role
     });
 
     // Store in Supabase (if available)
