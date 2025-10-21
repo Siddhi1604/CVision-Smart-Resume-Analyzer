@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import ResumeChart from '../components/ResumeChart';
 import axios from 'axios';
-import { getUserAnalyses, subscribeToUserAnalyses } from '../supabase';
+// Removed direct Supabase imports - now using backend API
 import { 
   BarChart3, 
   TrendingUp, 
@@ -44,8 +44,9 @@ const Dashboard = () => {
       
       console.log('🔍 Fetching data for user ID from Supabase:', currentUserId);
       
-      // Fetch analyses from Supabase
-      const analyses = await getUserAnalyses(currentUserId);
+      // Fetch analyses from backend API
+      const response = await axios.get(`/user-analyses/${currentUserId}`);
+      const analyses = response.data.analyses;
       
       console.log('📊 Found analyses from Supabase:', analyses.length);
       console.log('🔍 Raw analyses data:', analyses);
@@ -138,14 +139,7 @@ const Dashboard = () => {
 
     const currentUserId = (user?.uid) || (user?.email) || (user?.displayName) || (JSON.parse(localStorage.getItem('authUser') || 'null')?.uid) || 'Vyom1184';
     
-    console.log('🔄 Setting up real-time subscription for user:', currentUserId);
-    
-    // Set up Supabase real-time subscription
-    const subscription = subscribeToUserAnalyses(currentUserId, (payload) => {
-      console.log('🔄 Real-time update received:', payload);
-      // Refresh data when changes occur
-      fetchUserData();
-    });
+    console.log('🔄 Setting up analysis completion listener for user:', currentUserId);
 
     const handleAnalysisComplete = () => {
       console.log('🔄 Analysis completed, refreshing dashboard...');
@@ -165,10 +159,7 @@ const Dashboard = () => {
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      // Clean up subscription
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      // Clean up event listeners
       window.removeEventListener('analysisCompleted', handleAnalysisComplete);
       window.removeEventListener('storage', handleStorageChange);
     };
